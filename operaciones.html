@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard | Sistema Pyme Contratistas</title>
+  <title>Operaciones | Sistema Pyme Contratistas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script type="module" src="app.js"></script>
 </head>
-<body data-page="dashboard">
+<body data-page="operations">
   <div class="bg-shape bg-shape-a"></div>
   <div class="bg-shape bg-shape-b"></div>
   <div class="bg-shape bg-shape-c"></div>
@@ -26,10 +26,8 @@
     </button>
     <div>
       <p class="eyebrow">Sistema Pyme Contratistas</p>
-      <h1>Dashboard integral de licitaciones, contratos y operacion</h1>
-      <p class="subhead">
-        Vista ejecutiva para PYMEs que licitan, adjudican contratos y gestionan su ejecucion.
-      </p>
+      <h1>Operacion de contratos</h1>
+      <p class="subhead">Planifica tareas criticas y evita bloqueos durante la ejecucion del contrato.</p>
     </div>
     <div class="topbar-actions">
       <label class="control compact">
@@ -58,39 +56,63 @@
   <div id="nav-overlay" class="nav-overlay"></div>
 
   <main>
-    <section id="dashboard-kpis" class="kpi-grid"></section>
-
     <section class="panel-grid two-col">
       <article class="panel">
         <div class="panel-header">
-          <h2>Alertas de gestion</h2>
+          <h2>Nueva tarea operativa</h2>
         </div>
-        <ul id="alerts-list" class="list"></ul>
+        <form id="operation-form" class="form-grid">
+          <label class="control">
+            Contrato
+            <select name="contractId" id="operation-contract-select"></select>
+          </label>
+          <label class="control">
+            Titulo
+            <input name="title" required placeholder="Ej: Cierre plan de mantenimiento semana 2" />
+          </label>
+          <label class="control">
+            Responsable
+            <input name="owner" required placeholder="Ej: Supervisor terreno turno A" />
+          </label>
+          <label class="control">
+            Prioridad
+            <select name="priority">
+              <option value="low">Baja</option>
+              <option value="medium">Media</option>
+              <option value="high">Alta</option>
+            </select>
+          </label>
+          <label class="control">
+            Fecha limite
+            <input name="dueDate" type="date" required />
+          </label>
+          <label class="control">
+            Estado
+            <select name="status">
+              <option value="todo">Pendiente</option>
+              <option value="doing">En progreso</option>
+              <option value="blocked">Bloqueada</option>
+              <option value="done">Completada</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" type="submit">Agregar tarea</button>
+        </form>
       </article>
 
       <article class="panel">
         <div class="panel-header">
-          <h2>Salud por modulo</h2>
+          <h2>Vencimientos cercanos</h2>
         </div>
-        <div id="module-health" class="module-health"></div>
+        <ul id="operations-upcoming" class="list"></ul>
       </article>
     </section>
 
-    <section class="panel-grid two-col">
-      <article class="panel">
-        <div class="panel-header">
-          <h2>Embudo de licitaciones</h2>
-        </div>
-        <div id="tender-funnel" class="pipeline-mini"></div>
-      </article>
-
-      <article class="panel">
-        <div class="panel-header">
-          <h2>Proximos hitos</h2>
-        </div>
-        <ul id="next-deadlines" class="list"></ul>
-      </article>
-    </section>
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Tablero operativo</h2>
+      </div>
+      <div id="operations-board" class="ops-board"></div>
+    </article>
   </main>
 </body>
 </html>

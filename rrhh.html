@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RRHH Reclutamiento | Sistema Pyme Contratistas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="module" src="app.js"></script>
+</head>
+<body data-page="hr">
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
+  <div class="bg-shape bg-shape-c"></div>
+
+  <header class="topbar">
+    <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menu" aria-controls="side-nav" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div>
+      <p class="eyebrow">Sistema Pyme Contratistas</p>
+      <h1>RRHH - Reclutamiento y seleccion</h1>
+      <p class="subhead">Submodulo de atraccion de talento para cubrir vacantes operativas.</p>
+    </div>
+    <div class="topbar-actions">
+      <label class="control compact">
+        Rol activo
+        <select id="active-role"></select>
+      </label>
+      <button id="reset-data" class="btn btn-ghost">Reiniciar demo</button>
+    </div>
+  </header>
+
+  <nav id="side-nav" class="main-nav" aria-label="Modulos">
+    <a class="nav-link" data-nav="dashboard" href="index.html">Dashboard</a>
+    <a class="nav-link" data-nav="tenders" href="licitaciones.html">Licitaciones</a>
+    <a class="nav-link" data-nav="contracts" href="contratos.html">Contratos</a>
+    <a class="nav-link" data-nav="operations" href="operaciones.html">Operaciones</a>
+    <a class="nav-link" data-nav="finance" href="finanzas.html">Finanzas</a>
+
+    <section class="nav-group" data-group="hr">
+      <p class="nav-group-title">RRHH</p>
+      <a class="nav-sublink" data-nav="hr" href="rrhh.html">Reclutamiento y seleccion</a>
+      <a class="nav-sublink" data-nav="hr_people" href="rrhh-personas.html">Gestion de personas</a>
+    </section>
+
+    <a class="nav-link" data-nav="architecture" href="arquitectura.html">Arquitectura</a>
+  </nav>
+  <div id="nav-overlay" class="nav-overlay"></div>
+
+  <main>
+    <section class="subpage-nav" aria-label="Submodulos RRHH">
+      <a class="subpage-link is-active" href="rrhh.html">Reclutamiento y seleccion</a>
+      <a class="subpage-link" href="rrhh-personas.html">Gestion de personas</a>
+    </section>
+
+    <section id="hr-kpis" class="kpi-grid"></section>
+
+    <section class="panel-grid two-col">
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Nueva vacante</h2>
+        </div>
+        <form id="vacancy-form" class="form-grid">
+          <label class="control">
+            Cargo
+            <input name="title" required placeholder="Ej: Tecnico electrico senior" />
+          </label>
+          <label class="control">
+            Area
+            <input name="area" required placeholder="Ej: Operaciones terreno" />
+          </label>
+          <label class="control">
+            Contrato asociado
+            <select name="contractId" id="vacancy-contract-select"></select>
+          </label>
+          <label class="control">
+            Cupos
+            <input name="openings" type="number" min="1" value="1" required />
+          </label>
+          <label class="control">
+            Fecha objetivo
+            <input name="targetDate" type="date" />
+          </label>
+          <label class="control">
+            Estado
+            <select name="status">
+              <option value="open">Abierta</option>
+              <option value="paused">Pausada</option>
+              <option value="closed">Cerrada</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" type="submit">Crear vacante</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Nuevo candidato</h2>
+        </div>
+        <form id="candidate-form" class="form-grid">
+          <label class="control">
+            Nombre
+            <input name="name" required placeholder="Ej: Valentina Araya" />
+          </label>
+          <label class="control">
+            Fuente
+            <select name="source">
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="Referido">Referido</option>
+              <option value="Portal">Portal empleo</option>
+              <option value="Base">Base interna</option>
+            </select>
+          </label>
+          <label class="control">
+            Vacante
+            <select name="vacancyId" id="candidate-vacancy-select"></select>
+          </label>
+          <label class="control">
+            Pretension (USD)
+            <input name="salary" type="number" min="0" step="100" required />
+          </label>
+          <button class="btn btn-primary" type="submit">Agregar candidato</button>
+        </form>
+      </article>
+    </section>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Vacantes</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cargo</th>
+              <th>Area</th>
+              <th>Contrato</th>
+              <th>Cupos</th>
+              <th>Candidatos</th>
+              <th>Estado</th>
+              <th>Meta</th>
+            </tr>
+          </thead>
+          <tbody id="vacancies-table"></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Pipeline</h2>
+      </div>
+      <div id="hr-pipeline" class="pipeline-board"></div>
+    </article>
+  </main>
+</body>
+</html>

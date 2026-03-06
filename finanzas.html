@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finanzas | Sistema Pyme Contratistas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="module" src="app.js"></script>
+</head>
+<body data-page="finance">
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
+  <div class="bg-shape bg-shape-c"></div>
+
+  <header class="topbar">
+    <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menu" aria-controls="side-nav" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div>
+      <p class="eyebrow">Sistema Pyme Contratistas</p>
+      <h1>Finanzas de contratos</h1>
+      <p class="subhead">Controla flujo, pendientes de cobro/pago y resultado por contrato.</p>
+    </div>
+    <div class="topbar-actions">
+      <label class="control compact">
+        Rol activo
+        <select id="active-role"></select>
+      </label>
+      <button id="reset-data" class="btn btn-ghost">Reiniciar demo</button>
+    </div>
+  </header>
+
+  <nav id="side-nav" class="main-nav" aria-label="Modulos">
+    <a class="nav-link" data-nav="dashboard" href="index.html">Dashboard</a>
+    <a class="nav-link" data-nav="tenders" href="licitaciones.html">Licitaciones</a>
+    <a class="nav-link" data-nav="contracts" href="contratos.html">Contratos</a>
+    <a class="nav-link" data-nav="operations" href="operaciones.html">Operaciones</a>
+    <a class="nav-link" data-nav="finance" href="finanzas.html">Finanzas</a>
+
+    <section class="nav-group" data-group="hr">
+      <p class="nav-group-title">RRHH</p>
+      <a class="nav-sublink" data-nav="hr" href="rrhh.html">Reclutamiento y seleccion</a>
+      <a class="nav-sublink" data-nav="hr_people" href="rrhh-personas.html">Gestion de personas</a>
+    </section>
+
+    <a class="nav-link" data-nav="architecture" href="arquitectura.html">Arquitectura</a>
+  </nav>
+  <div id="nav-overlay" class="nav-overlay"></div>
+
+  <main>
+    <section id="finance-kpis" class="kpi-grid"></section>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Nuevo movimiento</h2>
+      </div>
+      <form id="finance-form" class="form-grid">
+        <label class="control">
+          Contrato
+          <select name="contractId" id="finance-contract-select"></select>
+        </label>
+        <label class="control">
+          Tipo
+          <select name="type">
+            <option value="income">Ingreso</option>
+            <option value="expense">Egreso</option>
+          </select>
+        </label>
+        <label class="control">
+          Concepto
+          <input name="concept" required placeholder="Ej: Estado de pago hito 2" />
+        </label>
+        <label class="control">
+          Categoria
+          <input name="category" required placeholder="Ej: Mano de obra, Materiales, Facturacion" />
+        </label>
+        <label class="control">
+          Monto (USD)
+          <input name="amount" type="number" min="0" step="100" required />
+        </label>
+        <label class="control">
+          Fecha compromiso
+          <input name="dueDate" type="date" required />
+        </label>
+        <label class="control">
+          Estado
+          <select name="status">
+            <option value="pending">Pendiente</option>
+            <option value="paid">Pagado</option>
+          </select>
+        </label>
+        <button class="btn btn-primary" type="submit">Guardar movimiento</button>
+      </form>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Libro financiero</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Contrato</th>
+              <th>Tipo</th>
+              <th>Concepto</th>
+              <th>Categoria</th>
+              <th>Monto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="finance-table"></tbody>
+        </table>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RRHH Gestion Personas | Sistema Pyme Contratistas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="module" src="app.js"></script>
+</head>
+<body data-page="hr_people">
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
+  <div class="bg-shape bg-shape-c"></div>
+
+  <header class="topbar">
+    <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menu" aria-controls="side-nav" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div>
+      <p class="eyebrow">Sistema Pyme Contratistas</p>
+      <h1>RRHH - Gestion de personas y documentos</h1>
+      <p class="subhead">Submodulo para fichas de colaboradores y control documental.</p>
+    </div>
+    <div class="topbar-actions">
+      <label class="control compact">
+        Rol activo
+        <select id="active-role"></select>
+      </label>
+      <button id="reset-data" class="btn btn-ghost">Reiniciar demo</button>
+    </div>
+  </header>
+
+  <nav id="side-nav" class="main-nav" aria-label="Modulos">
+    <a class="nav-link" data-nav="dashboard" href="index.html">Dashboard</a>
+    <a class="nav-link" data-nav="tenders" href="licitaciones.html">Licitaciones</a>
+    <a class="nav-link" data-nav="contracts" href="contratos.html">Contratos</a>
+    <a class="nav-link" data-nav="operations" href="operaciones.html">Operaciones</a>
+    <a class="nav-link" data-nav="finance" href="finanzas.html">Finanzas</a>
+
+    <section class="nav-group" data-group="hr">
+      <p class="nav-group-title">RRHH</p>
+      <a class="nav-sublink" data-nav="hr" href="rrhh.html">Reclutamiento y seleccion</a>
+      <a class="nav-sublink" data-nav="hr_people" href="rrhh-personas.html">Gestion de personas</a>
+    </section>
+
+    <a class="nav-link" data-nav="architecture" href="arquitectura.html">Arquitectura</a>
+  </nav>
+  <div id="nav-overlay" class="nav-overlay"></div>
+
+  <main>
+    <section class="subpage-nav" aria-label="Submodulos RRHH">
+      <a class="subpage-link" href="rrhh.html">Reclutamiento y seleccion</a>
+      <a class="subpage-link is-active" href="rrhh-personas.html">Gestion de personas</a>
+    </section>
+
+    <section id="hr-people-kpis" class="kpi-grid"></section>
+
+    <section class="panel-grid two-col">
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Nueva persona</h2>
+        </div>
+        <form id="person-form" class="form-grid">
+          <label class="control">
+            Nombre completo
+            <input name="fullName" required placeholder="Ej: Camila Torres" />
+          </label>
+          <label class="control">
+            Documento ID
+            <input name="idNumber" required placeholder="Ej: 16.542.876-4" />
+          </label>
+          <label class="control">
+            Cargo
+            <input name="position" required placeholder="Ej: Tecnica electrica" />
+          </label>
+          <label class="control">
+            Contrato asociado
+            <select name="contractId" id="person-contract-select"></select>
+          </label>
+          <label class="control">
+            Fecha ingreso
+            <input name="hireDate" type="date" required />
+          </label>
+          <label class="control">
+            Estado laboral
+            <select name="employmentStatus">
+              <option value="active">Activo</option>
+              <option value="on_leave">Licencia</option>
+              <option value="inactive">Inactivo</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" type="submit">Guardar persona</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Nuevo documento</h2>
+        </div>
+        <form id="person-doc-form" class="form-grid">
+          <label class="control">
+            Persona
+            <select name="personId" id="doc-person-select"></select>
+          </label>
+          <label class="control">
+            Tipo documento
+            <select name="docType">
+              <option value="Contrato">Contrato</option>
+              <option value="Carnet">Carnet</option>
+              <option value="Anexo">Anexo</option>
+              <option value="Certificado Salud">Certificado Salud</option>
+              <option value="Prevencion Riesgos">Prevencion Riesgos</option>
+            </select>
+          </label>
+          <label class="control">
+            Archivo (nombre)
+            <input name="fileName" placeholder="Ej: contrato_camila_torres.pdf" required />
+          </label>
+          <label class="control">
+            Estado documento
+            <select name="status">
+              <option value="uploaded">Cargado</option>
+              <option value="pending">Pendiente</option>
+              <option value="expiring">Por vencer</option>
+              <option value="expired">Vencido</option>
+            </select>
+          </label>
+          <label class="control">
+            Fecha vencimiento (opcional)
+            <input name="expiryDate" type="date" />
+          </label>
+          <button class="btn btn-primary" type="submit">Subir documento (demo)</button>
+        </form>
+      </article>
+    </section>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Fichas de personas</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>ID</th>
+              <th>Cargo</th>
+              <th>Contrato</th>
+              <th>Ingreso</th>
+              <th>Estado laboral</th>
+              <th>Cumplimiento docs</th>
+            </tr>
+          </thead>
+          <tbody id="people-table"></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Documentos de personas</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Persona</th>
+              <th>Tipo</th>
+              <th>Archivo</th>
+              <th>Estado</th>
+              <th>Vencimiento</th>
+              <th>Ultima actualizacion</th>
+            </tr>
+          </thead>
+          <tbody id="person-docs-table"></tbody>
+        </table>
+      </div>
+    </article>
+  </main>
+</body>
+</html>
