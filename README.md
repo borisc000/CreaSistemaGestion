@@ -1,136 +1,177 @@
-# Sistema Pyme Contratistas - MVP multipagina
+# Crea Sistema Gestion (MVP v2)
 
-MVP demo para PYMEs que gestionan:
-- licitaciones,
-- contratos adjudicados,
-- operacion del contrato,
-- finanzas por contrato,
-- RRHH de soporte operativo.
+MVP integral para PyME contratistas, reescrito con:
 
-## Que cambio en esta version
+- Next.js 14 (App Router)
+- TypeScript
+- Firebase Auth (Google)
+- Firestore (tenant-aware)
+- Firebase Storage (documentos RRHH)
+- Cloud Functions v2 (scheduler, alertas, auditoria)
+- Preparado para Firebase App Hosting
 
-- Se paso de una sola vista a **multipagina**.
-- Se cambio el foco de \"subcontratistas\" a **contratistas y contratos ganados**.
-- Se mejoro el modelo de datos para relacionar modulos:
-  - licitacion -> contrato -> operacion/finanzas/RRHH.
-- Se mantuvo persistencia local (`localStorage`) para iterar rapido antes de cloud.
+## Alcance funcional MVP
 
-## Paginas
+Modulos implementados:
 
-- [index.html](./index.html): dashboard ejecutivo.
-- [licitaciones.html](./licitaciones.html): pipeline de oportunidades.
-- [contratos.html](./contratos.html): cartera adjudicada, margen y avance.
-- [operaciones.html](./operaciones.html): tablero de tareas por contrato.
-- [finanzas.html](./finanzas.html): movimientos y flujo por contrato.
-- [rrhh.html](./rrhh.html): RRHH - reclutamiento y seleccion.
-- [rrhh-personas.html](./rrhh-personas.html): RRHH - gestion de personas y documentos.
-- [arquitectura.html](./arquitectura.html): readiness y roadmap tecnico.
+- Dashboard
+- Licitaciones
+- Contratos
+- Operaciones
+- Finanzas
+- RRHH / Reclutamiento y seleccion
+- RRHH / Gestion de personas y documentos
 
-## Roles demo
+Navegacion jerarquica con menu lateral y subpaginas RRHH.
 
-- Administrador
-- Lider Licitaciones
-- Contract Manager
-- Analista Finanzas
-- Lider RRHH
-- Solo lectura
+## Arquitectura
 
-Cada rol habilita solo las acciones de su modulo.
-
-## Como ejecutar
-
-1. Entrar a la carpeta del proyecto:
-
-```powershell
-Set-Location C:\Users\boris\OneDrive\Documentos\SistemaGestionCrea\ReclutamientoSeleccion
+```text
+src/
+  app/                 # Rutas Next.js (App Router)
+  features/            # UI y logica por modulo
+  lib/                 # SDK Firebase client/admin y utilidades
+  server/              # autorizacion, validacion, repositorios, servicios
+  types/               # tipos de dominio y catalogos
+functions/
+  src/index.ts         # tareas async, auditoria y asignacion de roles
 ```
 
-2. Modo desarrollo con npm (recomendado):
+Persistencia Firestore bajo esquema tenant-aware:
+
+- `tenants/{tenantId}/tenders`
+- `tenants/{tenantId}/contracts`
+- `tenants/{tenantId}/operationTasks`
+- `tenants/{tenantId}/financeEntries`
+- `tenants/{tenantId}/vacancies`
+- `tenants/{tenantId}/candidates`
+- `tenants/{tenantId}/peopleRecords`
+- `tenants/{tenantId}/personDocuments`
+
+Storage documental RRHH:
+
+- `tenants/{tenantId}/people/{personId}/documents/{docId}-{filename}`
+
+## API interna
+
+Route Handlers:
+
+- `/api/tenders`
+- `/api/contracts`
+- `/api/operations`
+- `/api/finance`
+- `/api/hr/recruiting`
+- `/api/hr/people`
+- `/api/hr/documents`
+- `/api/dashboard`
+
+Roles (custom claims):
+
+- `admin`
+- `tender_lead`
+- `contract_manager`
+- `finance`
+- `hr`
+- `viewer`
+
+## Requisitos
+
+- Node.js 20+
+- npm 10+
+- Proyecto Firebase (Auth, Firestore, Storage)
+
+## Configuracion local
+
+1. Instalar dependencias:
 
 ```powershell
-npm.cmd run dev
+npm ci
+npm --prefix functions ci
 ```
 
-3. Alternativa sin npm (servidor estatico):
+2. Crear `.env.local` desde `.env.example` y completar:
+
+- `NEXT_PUBLIC_FIREBASE_*`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+- `NEXT_PUBLIC_DEFAULT_TENANT_ID`
+
+3. Levantar app:
 
 ```powershell
-python -m http.server 5500
+npm run dev
 ```
 
-Luego abrir `http://localhost:5500`.
+4. Abrir `http://localhost:3000`.
 
-## Estructura tecnica
+## Bootstrap del primer admin
 
-- [app.js](./app.js): motor compartido por pagina (estado, permisos, CRUD, KPIs).
-- [styles.css](./styles.css): layout, navegacion y componentes visuales.
-- HTML multipagina: separacion por modulo de negocio.
-
-## Stack actual
-
-No estamos en React + Node backend.
-
-- Frontend: HTML/CSS/JS vanilla (multipagina).
-- Tooling: Vite (dev server + build).
-- Persistencia: `localStorage`.
-- Backend: no hay backend aun (por eso luego conectamos Firebase).
-
-Alternativas viables para siguiente fase:
-- Mantener vanilla + Firebase (rapido para MVP).
-- Migrar a React + Vite + Firebase (mejor escalabilidad UI).
-- Migrar a Next.js + Firebase (SSR/rutas avanzadas si luego lo necesitas).
-
-## Publicar en GitHub Pages
-
-Ya esta agregado workflow de deploy automatico:
-- [deploy-pages.yml](./.github/workflows/deploy-pages.yml)
-
-Al hacer push a `master`, GitHub Actions genera `dist/` y publica en Pages.
-
-Pasos:
-1. Crear repo en GitHub.
-2. Conectar remoto y push:
+Despues del primer login con Google (para crear usuario), asigna claims admin:
 
 ```powershell
-git remote add origin https://github.com/TU-USUARIO/TU-REPO.git
-git add .
-git commit -m "MVP multipagina con RRHH submodulos"
-git push -u origin master
+$env:BOOTSTRAP_ADMIN_EMAIL="tu-email@dominio.com"
+$env:BOOTSTRAP_TENANT_ID="crea-default"
+npm run bootstrap:admin
 ```
 
-3. En GitHub: `Settings -> Pages -> Source: GitHub Actions`.
+## Cloud Functions
 
-## Conexion a Firebase (siguiente iteracion)
+Build local:
 
-Esta version aun NO esta conectada a Firebase. Se recomienda avanzar asi:
+```powershell
+npm run functions:build
+```
 
-1. **Inicializar proyecto Firebase**
-   - crear proyecto en Firebase Console.
-   - habilitar Auth (email/password al inicio).
-   - crear Firestore en modo produccion.
+Funciones incluidas:
 
-2. **Modelar colecciones multi-tenant**
-   - `tenants/{tenantId}/tenders`
-   - `tenants/{tenantId}/contracts`
-   - `tenants/{tenantId}/operationTasks`
-   - `tenants/{tenantId}/financeEntries`
-   - `tenants/{tenantId}/vacancies`
-   - `tenants/{tenantId}/candidates`
-   - `tenants/{tenantId}/peopleRecords`
-   - `tenants/{tenantId}/personDocuments`
+- `syncDocumentStatuses`: job diario para recalcular estado documental + alertas
+- `auditContractChanges`: auditoria sobre contratos
+- `auditFinanceChanges`: auditoria sobre finanzas
+- `assignUserRole`: callable para asignar rol/tenant (solo admin)
 
-3. **Crear roles en Auth + custom claims**
-   - `admin`, `tender_lead`, `contract_manager`, `finance`, `hr`, `viewer`.
+## Seguridad Firebase
 
-4. **Security Rules**
-   - filtrar por `tenantId`.
-   - permitir lectura/escritura segun rol y modulo.
+Archivos incluidos:
 
-5. **Migrar capa de almacenamiento**
-   - reemplazar funciones `loadData/persist` de `localStorage` por repositorios Firestore.
-   - mantener misma UI para no rehacer pantallas.
+- `firestore.rules`
+- `storage.rules`
+- `firestore.indexes.json`
+- `firebase.json`
 
-6. **Despliegue**
-   - Firebase Hosting para frontend.
-   - (opcional) Cloud Functions para auditoria, alertas y automatizaciones.
+Ejecutar Emulator Suite:
 
-Si quieres, en la proxima iteracion te dejo conectada la primera pagina (`licitaciones`) a Firestore real y desde ahi replicamos al resto.
+```powershell
+firebase emulators:start
+```
+
+## App Hosting (dev/prod)
+
+El repo ya esta preparado para trabajar con 2 ambientes.
+
+1. Define aliases en `.firebaserc`:
+   - `dev` -> id proyecto Firebase desarrollo
+   - `prod` -> id proyecto Firebase produccion
+2. En Firebase Console, conecta App Hosting al repo GitHub.
+3. Configura ramas:
+   - `develop` -> backend de `dev`
+   - `main` -> backend de `prod`
+4. Configura variables de entorno por ambiente en App Hosting.
+
+## CI
+
+Workflow GitHub Actions (`.github/workflows/deploy-pages.yml`) valida:
+
+- lint
+- typecheck
+- tests
+- build Next
+- build Functions
+
+## Estado
+
+Esta version reemplaza el MVP anterior (guardado en `legacy-mvp/`) y deja base lista para continuar con:
+
+- pruebas de integracion sobre Emulator Suite
+- endurecimiento de reglas por modulo/rol
+- observabilidad y rollout de produccion

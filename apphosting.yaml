@@ -1,0 +1,17 @@
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 3
+
+env:
+  - variable: NEXT_PUBLIC_DEFAULT_TENANT_ID
+    value: crea-default
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_DEFAULT_ROLE
+    value: viewer
+    availability:
+      - BUILD
+      - RUNTIME

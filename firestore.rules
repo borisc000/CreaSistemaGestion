@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer";
+    }
+
+    function tenant() {
+      return signedIn() && request.auth.token.tenantId is string ? request.auth.token.tenantId : "crea-default";
+    }
+
+    function sameTenant(tenantId) {
+      return signedIn() && tenantId == tenant();
+    }
+
+    function hasRole(allowed) {
+      return signedIn() && role() in allowed;
+    }
+
+    function canReadCollection(collection) {
+      return (
+        (collection == "tenders" && hasRole(["admin", "tender_lead", "viewer"])) ||
+        (collection == "contracts" && hasRole(["admin", "tender_lead", "contract_manager", "viewer"])) ||
+        (collection == "operationTasks" && hasRole(["admin", "contract_manager", "viewer"])) ||
+        (collection == "financeEntries" && hasRole(["admin", "finance", "viewer"])) ||
+        (collection == "vacancies" && hasRole(["admin", "hr", "viewer"])) ||
+        (collection == "candidates" && hasRole(["admin", "hr", "viewer"])) ||
+        (collection == "peopleRecords" && hasRole(["admin", "hr", "viewer"])) ||
+        (collection == "personDocuments" && hasRole(["admin", "hr", "viewer"])) ||
+        (collection == "alerts" && hasRole(["admin", "contract_manager", "finance", "hr"])) ||
+        (collection == "auditLogs" && hasRole(["admin"]))
+      );
+    }
+
+    function canWriteCollection(collection) {
+      return (
+        (collection == "tenders" && hasRole(["admin", "tender_lead"])) ||
+        (collection == "contracts" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
+        (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
+        (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
+        (collection == "vacancies" && hasRole(["admin", "hr"])) ||
+        (collection == "candidates" && hasRole(["admin", "hr"])) ||
+        (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
+        (collection == "personDocuments" && hasRole(["admin", "hr"]))
+      );
+    }
+
+    match /tenants/{tenantId}/{collection}/{docId} {
+      allow read: if sameTenant(tenantId) && canReadCollection(collection);
+      allow create, update, delete: if sameTenant(tenantId) && canWriteCollection(collection);
+    }
+  }
+}

@@ -1,18 +1,38 @@
 {
-  "name": "reclutamientoseleccion",
-  "version": "1.0.0",
-  "description": "MVP demo para PYMEs que gestionan: - licitaciones, - contratos adjudicados, - operacion del contrato, - finanzas por contrato, - RRHH de soporte operativo.",
-  "main": "app.js",
+  "name": "crea-sistema-gestion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de gestion integral PyME contratistas en Next.js + Firebase.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "functions:build": "npm --prefix functions run build",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "firebase": "^11.2.0",
+    "firebase-admin": "^13.0.2",
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
-    "vite": "^7.3.1"
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }

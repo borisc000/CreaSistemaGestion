@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "dev": "sistema-gestion-crea",
+    "prod": "sistema-gestion-crea"
+  }
+}
