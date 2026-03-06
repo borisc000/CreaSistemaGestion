@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { NAV_ITEMS, ROLE_LABELS } from "@/features/layout/nav-config";
 import { hasModuleAccess } from "@/server/auth/roles";
@@ -37,9 +37,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return item.children.some((child) => (child.moduleKey ? hasModuleAccess(role, child.moduleKey) : true));
   });
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
   return (
     <div className="app-root">
-      <aside className={`side-nav ${menuOpen ? "is-open" : ""}`}>
+      <aside className={`side-nav ${menuOpen ? "is-open" : ""}`} id="main-nav">
         <div className="brand">Crea Sistema Gestion</div>
         {items.map((item) => {
           const activeRoot = isActive(pathname, item.href);
@@ -76,7 +95,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="main-layer">
         <header className="topbar">
-          <button className="menu-btn" onClick={() => setMenuOpen((value) => !value)} type="button" aria-label="Abrir menu">
+          <button
+            className="menu-btn"
+            onClick={() => setMenuOpen((value) => !value)}
+            type="button"
+            aria-label="Abrir menu"
+            aria-expanded={menuOpen}
+            aria-controls="main-nav"
+          >
             <span />
             <span />
             <span />
