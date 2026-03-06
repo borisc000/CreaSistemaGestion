@@ -580,6 +580,11 @@ td select {
   gap: 8px;
 }
 
+.kanban-column.is-over {
+  border-color: rgba(15, 91, 157, 0.45);
+  background: rgba(15, 91, 157, 0.06);
+}
+
 .stage-head {
   display: flex;
   justify-content: space-between;
@@ -610,6 +615,8 @@ td select {
   padding: 10px;
   display: grid;
   gap: 5px;
+  cursor: grab;
+  touch-action: none;
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
@@ -617,6 +624,16 @@ td select {
   transform: translateY(-1px);
   border-color: #bdd1e6;
   box-shadow: 0 12px 20px -20px rgba(15, 32, 51, 0.7);
+}
+
+.task-card:active {
+  cursor: grabbing;
+}
+
+.task-card.is-dragging {
+  opacity: 0.75;
+  border-color: #6f95bf;
+  box-shadow: 0 18px 30px -24px rgba(15, 32, 51, 0.8);
 }
 
 .task-card p {
@@ -655,7 +672,13 @@ td select {
   border-radius: 12px;
   background: #fff;
   padding: 10px;
+  cursor: grab;
+  touch-action: none;
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.candidate-card:active {
+  cursor: grabbing;
 }
 
 .candidate-card:hover {

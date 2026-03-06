@@ -31,14 +31,16 @@ export function useCrudModule<TItem>(endpoint: string) {
   }, [load]);
 
   const create = useCallback(
-    async (payload: unknown) => {
+    async (payload: unknown): Promise<boolean> => {
       setState("saving");
       setError(null);
       try {
         await api.post(endpoint, payload);
         await load();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo guardar.");
+        return false;
       } finally {
         setState("idle");
       }
@@ -47,14 +49,16 @@ export function useCrudModule<TItem>(endpoint: string) {
   );
 
   const patch = useCallback(
-    async (payload: unknown) => {
+    async (payload: unknown): Promise<boolean> => {
       setState("saving");
       setError(null);
       try {
         await api.patch(endpoint, payload);
         await load();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo actualizar.");
+        return false;
       } finally {
         setState("idle");
       }

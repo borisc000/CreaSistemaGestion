@@ -94,15 +94,19 @@ function SortableCandidateCard({
   };
 
   return (
-    <article className={clsx("candidate-card", isDragging && "is-dragging")} ref={setNodeRef} style={style}>
+    <article
+      className={clsx("candidate-card", isDragging && "is-dragging")}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      aria-label={`Mover ${candidate.name}`}
+    >
       <strong>{candidate.name}</strong>
       <p>{vacancy?.title || "Vacante no encontrada"}</p>
       <p>{candidate.source}</p>
       <p>{formatCurrency(candidate.salary)}</p>
       <span className={stageBadgeClass(candidate.stage)}>{candidate.stage}</span>
-      <button className="drag-handle" type="button" {...attributes} {...listeners} aria-label={`Mover ${candidate.name}`}>
-        Arrastrar
-      </button>
     </article>
   );
 }
@@ -488,7 +492,7 @@ export function HrRecruitingPage() {
       </Panel>
 
       <Panel title="Pipeline por etapa (drag & drop)">
-        <p className="drag-handle">Puedes arrastrar con mouse/touch para mover candidatos entre etapas.</p>
+        <p>Puedes arrastrar cualquier tarjeta con mouse/touch para mover candidatos entre etapas.</p>
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="pipeline-board">
             {CANDIDATE_STAGES.map((stage) => {

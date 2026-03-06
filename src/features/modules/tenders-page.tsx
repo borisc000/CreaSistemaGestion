@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Tender, TenderStatus } from "@/types/domain";
 
@@ -10,6 +10,7 @@ const STATUSES: TenderStatus[] = ["draft", "submitted", "won", "lost"];
 
 export function TendersPage() {
   const { items, error, pending, create, patch } = useCrudModule<Tender>("/api/tenders");
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
   const [form, setForm] = useState({
     title: "",
     client: "",
@@ -26,6 +27,7 @@ export function TendersPage() {
 
   return (
     <ModulePage title="Licitaciones" description="Pipeline de oportunidades y adjudicaciones.">
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
         items={[
           { label: "Total", value: items.length },
@@ -43,15 +45,21 @@ export function TendersPage() {
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void create(form);
-            setForm({
-              title: "",
-              client: "",
-              amount: 0,
-              closeDate: "",
-              probability: 50,
-              responsible: "",
-              status: "draft"
+            void create(form).then((ok) => {
+              if (!ok) {
+                setToast({ message: "No se pudo crear licitacion.", tone: "error" });
+                return;
+              }
+              setToast({ message: "Licitacion creada.", tone: "success" });
+              setForm({
+                title: "",
+                client: "",
+                amount: 0,
+                closeDate: "",
+                probability: 50,
+                responsible: "",
+                status: "draft"
+              });
             });
           }}
         >
@@ -142,7 +150,14 @@ export function TendersPage() {
                   <td>
                     <select
                       value={item.status}
-                      onChange={(e) => void patch({ id: item.id, status: e.target.value as TenderStatus })}
+                      onChange={(e) =>
+                        void patch({ id: item.id, status: e.target.value as TenderStatus }).then((ok) => {
+                          setToast({
+                            message: ok ? "Estado de licitacion actualizado." : "No se pudo actualizar estado.",
+                            tone: ok ? "success" : "error"
+                          });
+                        })
+                      }
                     >
                       {STATUSES.map((status) => (
                         <option key={status} value={status}>

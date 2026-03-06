@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Contract, ContractStatus, Tender } from "@/types/domain";
 
@@ -11,6 +11,7 @@ const STATUSES: ContractStatus[] = ["planning", "active", "at_risk", "closed"];
 export function ContractsPage() {
   const contractsApi = useCrudModule<Contract>("/api/contracts");
   const tendersApi = useCrudModule<Tender>("/api/tenders");
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
   const wonTenders = useMemo(() => tendersApi.items.filter((item) => item.status === "won"), [tendersApi.items]);
 
@@ -31,6 +32,7 @@ export function ContractsPage() {
 
   return (
     <ModulePage title="Contratos" description="Cartera adjudicada y control de margen/avance.">
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
         items={[
           { label: "Total contratos", value: contractsApi.items.length },
@@ -45,18 +47,24 @@ export function ContractsPage() {
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void contractsApi.create({ ...form, tenderId: form.tenderId || null });
-            setForm({
-              tenderId: "",
-              name: "",
-              client: "",
-              totalValue: 0,
-              costEstimate: 0,
-              startDate: "",
-              endDate: "",
-              manager: "",
-              status: "planning",
-              progress: 0
+            void contractsApi.create({ ...form, tenderId: form.tenderId || null }).then((ok) => {
+              if (!ok) {
+                setToast({ message: "No se pudo crear contrato.", tone: "error" });
+                return;
+              }
+              setToast({ message: "Contrato creado.", tone: "success" });
+              setForm({
+                tenderId: "",
+                name: "",
+                client: "",
+                totalValue: 0,
+                costEstimate: 0,
+                startDate: "",
+                endDate: "",
+                manager: "",
+                status: "planning",
+                progress: 0
+              });
             });
           }}
         >
@@ -113,7 +121,9 @@ export function ContractsPage() {
             Avance
             <input type="number" min={0} max={100} value={form.progress} onChange={(e) => setForm((v) => ({ ...v, progress: Number(e.target.value) }))} />
           </label>
-          <button className="btn-primary" type="submit">Guardar</button>
+          <button className="btn-primary" type="submit" disabled={contractsApi.pending === "saving"}>
+            Guardar
+          </button>
         </form>
       </Panel>
 
@@ -153,7 +163,17 @@ export function ContractsPage() {
                     <td>{formatDate(item.startDate)}</td>
                     <td>{formatDate(item.endDate)}</td>
                     <td>
-                      <select value={item.status} onChange={(e) => void contractsApi.patch({ id: item.id, status: e.target.value })}>
+                      <select
+                        value={item.status}
+                        onChange={(e) =>
+                          void contractsApi.patch({ id: item.id, status: e.target.value }).then((ok) => {
+                            setToast({
+                              message: ok ? "Estado de contrato actualizado." : "No se pudo actualizar estado.",
+                              tone: ok ? "success" : "error"
+                            });
+                          })
+                        }
+                      >
                         {STATUSES.map((status) => (
                           <option key={status} value={status}>
                             {status}

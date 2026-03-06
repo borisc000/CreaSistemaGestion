@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ref, uploadBytes } from "firebase/storage";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge, Toast } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
 import { formatDate } from "@/lib/format";
@@ -48,6 +48,7 @@ export function HrPeoplePage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
   const documentStats = useMemo(() => {
     const expired = documentsApi.items.filter((item) => item.status === "expired").length;
@@ -90,8 +91,10 @@ export function HrPeoplePage() {
 
       setDocumentForm({ personId: "", docType: REQUIRED_PERSON_DOCUMENT_TYPES[0], expiryDate: "" });
       setFile(null);
+      setToast({ message: "Documento subido y registrado.", tone: "success" });
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "No se pudo subir documento.");
+      setToast({ message: "No se pudo subir documento.", tone: "error" });
     } finally {
       setUploading(false);
     }
@@ -102,6 +105,7 @@ export function HrPeoplePage() {
       title="RRHH - Gestion de personas"
       description="Ficha de colaboradores por contrato y control documental con Storage + metadata Firestore."
     >
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
         items={[
           { label: "Personas", value: peopleApi.items.length },
@@ -119,15 +123,20 @@ export function HrPeoplePage() {
             void peopleApi.create({
               ...form,
               contractId: form.contractId || null
-            });
-
-            setForm({
-              fullName: "",
-              idNumber: "",
-              position: "",
-              contractId: "",
-              hireDate: "",
-              employmentStatus: "active"
+            }).then((ok) => {
+              if (!ok) {
+                setToast({ message: "No se pudo crear persona.", tone: "error" });
+                return;
+              }
+              setToast({ message: "Persona creada.", tone: "success" });
+              setForm({
+                fullName: "",
+                idNumber: "",
+                position: "",
+                contractId: "",
+                hireDate: "",
+                employmentStatus: "active"
+              });
             });
           }}
         >

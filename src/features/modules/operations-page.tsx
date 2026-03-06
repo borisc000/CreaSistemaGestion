@@ -1,16 +1,108 @@
 "use client";
 
-import { useState } from "react";
+import clsx from "clsx";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent
+} from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
 import { formatDate } from "@/lib/format";
+import { useApiClient } from "@/lib/api/use-api-client";
 import type { Contract, OperationTask, OperationTaskStatus } from "@/types/domain";
 
 const STATUSES: OperationTaskStatus[] = ["todo", "doing", "blocked", "done"];
 
+function resolveStatusFromDropTarget(overId: string | number, tasks: OperationTask[]): OperationTaskStatus | null {
+  const normalized = String(overId);
+  if (normalized.startsWith("status-")) {
+    const candidateStatus = normalized.replace("status-", "");
+    if (STATUSES.includes(candidateStatus as OperationTaskStatus)) {
+      return candidateStatus as OperationTaskStatus;
+    }
+  }
+
+  const targetTask = tasks.find((task) => task.id === normalized);
+  return targetTask?.status || null;
+}
+
+function StatusDropZone({
+  status,
+  count,
+  children
+}: {
+  status: OperationTaskStatus;
+  count: number;
+  children: ReactNode;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `status-${status}`
+  });
+
+  return (
+    <section className={clsx("kanban-column", isOver && "is-over")} ref={setNodeRef}>
+      <header className="stage-head">
+        <h3>{status}</h3>
+        <span className="stage-count">{count}</span>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function SortableTaskCard({
+  task,
+  contractName
+}: {
+  task: OperationTask;
+  contractName: string;
+}) {
+  const { attributes, listeners, isDragging, setNodeRef, transform, transition } = useSortable({
+    id: task.id
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <article
+      className={clsx("task-card", isDragging && "is-dragging")}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      aria-label={`Mover tarea ${task.title}`}
+    >
+      <strong>{task.title}</strong>
+      <p>{contractName}</p>
+      <p>{task.owner}</p>
+      <p>Vence: {formatDate(task.dueDate)}</p>
+    </article>
+  );
+}
+
 export function OperationsPage() {
+  const api = useApiClient();
   const operationsApi = useCrudModule<OperationTask>("/api/operations");
   const contractsApi = useCrudModule<Contract>("/api/contracts");
+  const [boardTasks, setBoardTasks] = useState<OperationTask[]>([]);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [interactionError, setInteractionError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
   const [form, setForm] = useState({
     contractId: "",
@@ -21,14 +113,69 @@ export function OperationsPage() {
     status: "todo" as OperationTaskStatus
   });
 
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  useEffect(() => {
+    setBoardTasks(operationsApi.items);
+  }, [operationsApi.items]);
+
+  const activeTask = useMemo(
+    () => boardTasks.find((task) => task.id === activeTaskId) || null,
+    [activeTaskId, boardTasks]
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveTaskId(String(event.active.id));
+    setInteractionError(null);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const draggedTaskId = String(event.active.id);
+      setActiveTaskId(null);
+
+      if (!event.over) return;
+      const movingTask = boardTasks.find((task) => task.id === draggedTaskId);
+      if (!movingTask) return;
+
+      const targetStatus = resolveStatusFromDropTarget(event.over.id, boardTasks);
+      if (!targetStatus || targetStatus === movingTask.status) return;
+
+      const previousTasks = boardTasks;
+      setBoardTasks((current) =>
+        current.map((task) => (task.id === movingTask.id ? { ...task, status: targetStatus } : task))
+      );
+
+      try {
+        await api.patch("/api/operations", {
+          id: movingTask.id,
+          status: targetStatus
+        });
+        await operationsApi.reload();
+        setToast({ message: `Tarea movida a ${targetStatus}.`, tone: "success" });
+      } catch (error) {
+        setBoardTasks(previousTasks);
+        const message = error instanceof Error ? error.message : "No se pudo mover la tarea.";
+        setInteractionError(message);
+        setToast({ message: "No se pudo mover la tarea. Se revirtio el cambio.", tone: "error" });
+      }
+    },
+    [api, boardTasks, operationsApi]
+  );
+
   return (
     <ModulePage title="Operaciones" description="Seguimiento operativo por contrato y estado de tareas.">
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
         items={[
-          { label: "Total tareas", value: operationsApi.items.length },
-          { label: "Pendientes", value: operationsApi.items.filter((item) => item.status === "todo").length },
-          { label: "Bloqueadas", value: operationsApi.items.filter((item) => item.status === "blocked").length },
-          { label: "Completadas", value: operationsApi.items.filter((item) => item.status === "done").length }
+          { label: "Total tareas", value: boardTasks.length },
+          { label: "Pendientes", value: boardTasks.filter((item) => item.status === "todo").length },
+          { label: "Bloqueadas", value: boardTasks.filter((item) => item.status === "blocked").length },
+          { label: "Completadas", value: boardTasks.filter((item) => item.status === "done").length }
         ]}
       />
 
@@ -37,8 +184,14 @@ export function OperationsPage() {
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void operationsApi.create(form);
-            setForm({ contractId: "", title: "", owner: "", priority: "medium", dueDate: "", status: "todo" });
+            void operationsApi.create(form).then((ok) => {
+              if (!ok) {
+                setToast({ message: "No se pudo crear tarea.", tone: "error" });
+                return;
+              }
+              setForm({ contractId: "", title: "", owner: "", priority: "medium", dueDate: "", status: "todo" });
+              setToast({ message: "Tarea creada.", tone: "success" });
+            });
           }}
         >
           <label>
@@ -73,7 +226,7 @@ export function OperationsPage() {
             <input type="date" value={form.dueDate} onChange={(e) => setForm((v) => ({ ...v, dueDate: e.target.value }))} required />
           </label>
           <label>
-            Estado
+            Estado inicial
             <select value={form.status} onChange={(e) => setForm((v) => ({ ...v, status: e.target.value as OperationTaskStatus }))}>
               {STATUSES.map((status) => (
                 <option key={status} value={status}>
@@ -82,44 +235,49 @@ export function OperationsPage() {
               ))}
             </select>
           </label>
-          <button className="btn-primary" type="submit">Guardar</button>
+          <button className="btn-primary" type="submit" disabled={operationsApi.pending === "saving"}>
+            Guardar
+          </button>
         </form>
       </Panel>
 
-      <Panel title="Tablero operativo">
-        <InlineError message={operationsApi.error || contractsApi.error} />
-        <div className="kanban-grid">
-          {STATUSES.map((status) => {
-            const stageTasks = operationsApi.items.filter((task) => task.status === status);
-            return (
-              <section className="kanban-column" key={status}>
-                <header className="stage-head">
-                  <h3>{status}</h3>
-                  <span className="stage-count">{stageTasks.length}</span>
-                </header>
-                {stageTasks.length === 0 ? <EmptyState message="Sin tareas en esta etapa." /> : null}
-                {stageTasks.map((task) => {
-                  const contract = contractsApi.items.find((item) => item.id === task.contractId);
-                  return (
-                    <article className="task-card" key={task.id}>
-                      <strong>{task.title}</strong>
-                      <p>{contract?.name || "Sin contrato"}</p>
-                      <p>{task.owner}</p>
-                      <p>Vence: {formatDate(task.dueDate)}</p>
-                      <select value={task.status} onChange={(e) => void operationsApi.patch({ id: task.id, status: e.target.value })}>
-                        {STATUSES.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </article>
-                  );
-                })}
-              </section>
-            );
-          })}
-        </div>
+      <Panel title="Tablero operativo (drag & drop)">
+        <p>Puedes arrastrar cualquier tarjeta con mouse/touch para mover tareas entre etapas.</p>
+        <InlineError message={interactionError || operationsApi.error || contractsApi.error} />
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="kanban-grid">
+            {STATUSES.map((status) => {
+              const stageTasks = boardTasks.filter((task) => task.status === status);
+              return (
+                <StatusDropZone status={status} count={stageTasks.length} key={status}>
+                  <SortableContext items={stageTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                    {stageTasks.length === 0 ? <EmptyState message="Sin tareas en esta etapa." /> : null}
+                    {stageTasks.map((task) => {
+                      const contract = contractsApi.items.find((item) => item.id === task.contractId);
+                      return (
+                        <SortableTaskCard
+                          task={task}
+                          contractName={contract?.name || "Sin contrato"}
+                          key={task.id}
+                        />
+                      );
+                    })}
+                  </SortableContext>
+                </StatusDropZone>
+              );
+            })}
+          </div>
+
+          <DragOverlay>
+            {activeTask ? (
+              <article className="task-card is-dragging">
+                <strong>{activeTask.title}</strong>
+                <p>{activeTask.owner}</p>
+                <p>Vence: {formatDate(activeTask.dueDate)}</p>
+              </article>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </Panel>
     </ModulePage>
   );

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Contract, FinanceEntry } from "@/types/domain";
 
@@ -12,6 +12,7 @@ const ENTRY_STATUSES = ["pending", "paid"] as const;
 export function FinancePage() {
   const financeApi = useCrudModule<FinanceEntry>("/api/finance");
   const contractsApi = useCrudModule<Contract>("/api/contracts");
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
   const [form, setForm] = useState({
     contractId: "",
@@ -46,6 +47,7 @@ export function FinancePage() {
 
   return (
     <ModulePage title="Finanzas" description="Control financiero por contrato y flujo de caja operativo.">
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
         items={[
           { label: "Movimientos", value: financeApi.items.length },
@@ -60,15 +62,21 @@ export function FinancePage() {
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void financeApi.create(form);
-            setForm({
-              contractId: "",
-              type: "income",
-              concept: "",
-              category: "",
-              amount: 0,
-              dueDate: "",
-              status: "pending"
+            void financeApi.create(form).then((ok) => {
+              if (!ok) {
+                setToast({ message: "No se pudo crear movimiento financiero.", tone: "error" });
+                return;
+              }
+              setToast({ message: "Movimiento financiero creado.", tone: "success" });
+              setForm({
+                contractId: "",
+                type: "income",
+                concept: "",
+                category: "",
+                amount: 0,
+                dueDate: "",
+                status: "pending"
+              });
             });
           }}
         >
@@ -198,6 +206,11 @@ export function FinancePage() {
                           void financeApi.patch({
                             id: item.id,
                             status: event.target.value as "pending" | "paid"
+                          }).then((ok) => {
+                            setToast({
+                              message: ok ? "Estado financiero actualizado." : "No se pudo actualizar estado.",
+                              tone: ok ? "success" : "error"
+                            });
                           })
                         }
                       >
