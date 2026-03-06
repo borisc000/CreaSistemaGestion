@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Módulo Reclutamiento y Selección</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">RRHH / Talent Ops</p>
+      <h1>Módulo de Reclutamiento y Selección</h1>
+    </div>
+    <div class="topbar-actions">
+      <label class="control compact">
+        Rol activo
+        <select id="active-role"></select>
+      </label>
+      <button id="reset-data" class="btn btn-ghost">Reiniciar demo</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="tabs" aria-label="Navegación">
+      <button class="tab is-active" data-view="dashboard">Dashboard</button>
+      <button class="tab" data-view="vacancies">Vacantes</button>
+      <button class="tab" data-view="pipeline">Pipeline</button>
+      <button class="tab" data-view="settings">Diseño MVP</button>
+    </section>
+
+    <section id="dashboard-view" class="view is-visible">
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Conversión por etapa</h2>
+        </div>
+        <div id="funnel-chart" class="funnel"></div>
+      </div>
+
+      <div class="dashboard-grid">
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Próximas entrevistas</h2>
+          </div>
+          <ul id="upcoming-interviews" class="list"></ul>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Riesgos de proceso</h2>
+          </div>
+          <ul id="risks-list" class="list"></ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="vacancies-view" class="view">
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Nueva vacante</h2>
+        </div>
+        <form id="vacancy-form" class="form-grid">
+          <label class="control">
+            Cargo
+            <input name="title" required placeholder="Ej: Analista de Operaciones" />
+          </label>
+          <label class="control">
+            Área
+            <input name="area" required placeholder="Ej: Operaciones" />
+          </label>
+          <label class="control">
+            Seniority
+            <select name="seniority" required>
+              <option value="Junior">Junior</option>
+              <option value="Semi Senior">Semi Senior</option>
+              <option value="Senior">Senior</option>
+              <option value="Líder">Líder</option>
+            </select>
+          </label>
+          <label class="control">
+            Cupos
+            <input name="openings" type="number" min="1" value="1" required />
+          </label>
+          <label class="control">
+            Fecha objetivo
+            <input name="targetDate" type="date" />
+          </label>
+          <label class="control">
+            Estado
+            <select name="status" required>
+              <option value="open">Abierta</option>
+              <option value="paused">Pausada</option>
+              <option value="closed">Cerrada</option>
+            </select>
+          </label>
+          <button class="btn btn-primary" type="submit">Crear vacante</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Vacantes activas</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cargo</th>
+                <th>Área</th>
+                <th>Seniority</th>
+                <th>Cupos</th>
+                <th>Candidatos</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="vacancy-table"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="pipeline-view" class="view">
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Nuevo candidato</h2>
+        </div>
+        <form id="candidate-form" class="form-grid">
+          <label class="control">
+            Nombre completo
+            <input name="name" required placeholder="Ej: María López" />
+          </label>
+          <label class="control">
+            Email
+            <input name="email" type="email" required placeholder="mail@dominio.com" />
+          </label>
+          <label class="control">
+            Teléfono
+            <input name="phone" required placeholder="+56 9..." />
+          </label>
+          <label class="control">
+            Fuente
+            <select name="source" required>
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="Referido">Referido</option>
+              <option value="Portal empleo">Portal empleo</option>
+              <option value="Base interna">Base interna</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+          <label class="control">
+            Vacante
+            <select name="vacancyId" id="candidate-vacancy" required></select>
+          </label>
+          <label class="control">
+            Pretensión salarial (USD)
+            <input name="salary" type="number" min="0" step="100" required />
+          </label>
+          <button class="btn btn-primary" type="submit">Agregar candidato</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header panel-header-wrap">
+          <h2>Pipeline</h2>
+          <div class="filters">
+            <label class="control compact">
+              Buscar
+              <input id="search-input" placeholder="Nombre o email" />
+            </label>
+            <label class="control compact">
+              Vacante
+              <select id="pipeline-vacancy-filter"></select>
+            </label>
+          </div>
+        </div>
+        <div id="pipeline-board" class="pipeline-board"></div>
+      </article>
+    </section>
+
+    <section id="settings-view" class="view">
+      <article class="panel">
+        <div class="panel-header">
+          <h2>Definición del MVP (genérico)</h2>
+        </div>
+        <div class="definition-grid">
+          <article>
+            <h3>Flujo definido</h3>
+            <ol>
+              <li>Ingreso de candidato</li>
+              <li>Pre-filtro CV (obligatorio)</li>
+              <li>Entrevista RRHH (obligatorio)</li>
+              <li>Entrevista área/técnica (opcional por vacante)</li>
+              <li>Evaluación final (opcional por vacante)</li>
+              <li>Oferta (obligatorio para contratación)</li>
+              <li>Resultado: Contratado o Rechazado</li>
+            </ol>
+          </article>
+          <article>
+            <h3>Supuestos funcionales</h3>
+            <ul>
+              <li>1 responsable principal en v1, con roles escalables.</li>
+              <li>Múltiples fuentes de ingreso de candidatos.</li>
+              <li>Gestión de vacantes incluida en MVP.</li>
+              <li>Evaluación con score de 1 a 5 + notas.</li>
+              <li>Agendamiento básico de entrevistas con fecha.</li>
+              <li>Dashboard con KPIs operativos clave.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>KPIs incluidos</h3>
+            <ul>
+              <li>Candidatos activos</li>
+              <li>Tasa de conversión a contratación</li>
+              <li>Tiempo promedio a contratación</li>
+              <li>Entrevistas programadas (7 días)</li>
+              <li>Efectividad por fuente</li>
+            </ul>
+          </article>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="candidate-dialog">
+    <form method="dialog" class="dialog">
+      <div class="dialog-head">
+        <h2 id="dialog-title">Detalle candidato</h2>
+        <button value="cancel" class="btn btn-ghost">Cerrar</button>
+      </div>
+
+      <div id="dialog-content" class="dialog-content"></div>
+
+      <div class="dialog-actions">
+        <button type="button" id="move-prev" class="btn btn-ghost">Mover etapa anterior</button>
+        <button type="button" id="move-next" class="btn btn-primary">Mover etapa siguiente</button>
+        <button type="button" id="mark-hired" class="btn btn-success">Marcar contratado</button>
+        <button type="button" id="mark-rejected" class="btn btn-danger">Marcar rechazado</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="note-form-template">
+    <form class="inline-form">
+      <label class="control">
+        Nota de seguimiento
+        <textarea name="note" rows="3" placeholder="Resumen de llamada, feedback o decisión"></textarea>
+      </label>
+      <button class="btn btn-primary" type="submit">Guardar nota</button>
+    </form>
+  </template>
+
+  <template id="interview-form-template">
+    <form class="inline-form split">
+      <label class="control">
+        Fecha entrevista
+        <input name="date" type="datetime-local" required />
+      </label>
+      <label class="control">
+        Tipo
+        <select name="mode">
+          <option value="Virtual">Virtual</option>
+          <option value="Presencial">Presencial</option>
+          <option value="Telefónica">Telefónica</option>
+        </select>
+      </label>
+      <button class="btn btn-primary" type="submit">Agendar</button>
+    </form>
+  </template>
+
+  <template id="score-form-template">
+    <form class="inline-form split">
+      <label class="control">
+        Criterio
+        <input name="criterion" required placeholder="Ej: Ajuste cultural" />
+      </label>
+      <label class="control">
+        Puntaje (1-5)
+        <input name="value" type="number" min="1" max="5" required />
+      </label>
+      <button class="btn btn-primary" type="submit">Guardar evaluación</button>
+    </form>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
