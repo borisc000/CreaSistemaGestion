@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
 import { ALLOW_DEV_AUTH_BYPASS, DEFAULT_DEV_ROLE, DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { ApiError } from "@/server/api/response";
-import { hasModuleAccess } from "@/server/auth/roles";
+import { hasModuleAccess, type ModuleAccessAction } from "@/server/auth/roles";
 import type { ModuleKey, TenantContext, UserRole } from "@/types/domain";
 
 function getBearerToken(req: NextRequest): string | null {
@@ -13,13 +13,17 @@ function getBearerToken(req: NextRequest): string | null {
   return token;
 }
 
-export async function getTenantContext(req: NextRequest, moduleKey: ModuleKey): Promise<TenantContext> {
+export async function getTenantContext(
+  req: NextRequest,
+  moduleKey: ModuleKey,
+  action: ModuleAccessAction = "read"
+): Promise<TenantContext> {
   const token = getBearerToken(req);
 
   if (ALLOW_DEV_AUTH_BYPASS) {
     const devRole = (req.headers.get("x-dev-role") as UserRole | null) || DEFAULT_DEV_ROLE;
-    if (!hasModuleAccess(devRole, moduleKey)) {
-      throw new ApiError(403, "Role has no permission for this module.");
+    if (!hasModuleAccess(devRole, moduleKey, action)) {
+      throw new ApiError(403, `Role has no ${action} permission for this module.`);
     }
     return {
       tenantId: DEFAULT_TENANT_ID,
@@ -43,8 +47,8 @@ export async function getTenantContext(req: NextRequest, moduleKey: ModuleKey): 
   const role = (decoded.role as UserRole | undefined) || "viewer";
   const tenantId = (decoded.tenantId as string | undefined) || DEFAULT_TENANT_ID;
 
-  if (!hasModuleAccess(role, moduleKey)) {
-    throw new ApiError(403, "Role has no permission for this module.");
+  if (!hasModuleAccess(role, moduleKey, action)) {
+    throw new ApiError(403, `Role has no ${action} permission for this module.`);
   }
 
   return {

@@ -96,9 +96,25 @@ export const syncDocumentStatuses = onSchedule(
   }
 );
 
+const AUDIT_COLLECTIONS = [
+  {
+    exportName: "auditContractChanges",
+    collection: "contracts",
+    moduleName: "contracts"
+  },
+  {
+    exportName: "auditFinanceChanges",
+    collection: "financeEntries",
+    moduleName: "financeEntries"
+  }
+] as const;
+
+type AuditableCollection = (typeof AUDIT_COLLECTIONS)[number]["collection"];
+type AuditableModuleName = (typeof AUDIT_COLLECTIONS)[number]["moduleName"];
+
 async function writeAuditEntry(
   tenantId: string,
-  moduleName: "contracts" | "financeEntries",
+  moduleName: AuditableModuleName,
   docId: string,
   before: Record<string, unknown> | null,
   after: Record<string, unknown> | null
@@ -119,23 +135,19 @@ async function writeAuditEntry(
     });
 }
 
-export const auditContractChanges = onDocumentWritten("tenants/{tenantId}/contracts/{docId}", async (event) => {
-  const tenantId = event.params.tenantId;
-  const docId = event.params.docId;
-  const before = event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : null;
-  const after = event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : null;
+function createAuditTrigger(collection: AuditableCollection, moduleName: AuditableModuleName) {
+  return onDocumentWritten(`tenants/{tenantId}/${collection}/{docId}`, async (event) => {
+    const tenantId = event.params.tenantId;
+    const docId = event.params.docId;
+    const before = event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : null;
+    const after = event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : null;
 
-  await writeAuditEntry(tenantId, "contracts", docId, before, after);
-});
+    await writeAuditEntry(tenantId, moduleName, docId, before, after);
+  });
+}
 
-export const auditFinanceChanges = onDocumentWritten("tenants/{tenantId}/financeEntries/{docId}", async (event) => {
-  const tenantId = event.params.tenantId;
-  const docId = event.params.docId;
-  const before = event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : null;
-  const after = event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : null;
-
-  await writeAuditEntry(tenantId, "financeEntries", docId, before, after);
-});
+export const auditContractChanges = createAuditTrigger("contracts", "contracts");
+export const auditFinanceChanges = createAuditTrigger("financeEntries", "financeEntries");
 
 export const assignUserRole = onCall(async (request) => {
   if (!request.auth) {

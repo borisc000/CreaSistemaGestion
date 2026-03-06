@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "functions:build": "npm --prefix functions run build",
-    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "rules:generate": "tsx scripts/generate-firestore-rules.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -3,7 +3,6 @@ import { tenderCreateSchema, tenderPatchSchema } from "@/server/validation/schem
 
 const handlers = buildCrudHandlers({
   moduleKey: "tenders",
-  collectionKey: "tenders",
   createSchema: tenderCreateSchema,
   patchSchema: tenderPatchSchema
 });

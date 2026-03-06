@@ -9,7 +9,7 @@ import {
   patchEntity
 } from "@/server/repositories/firestore-repository";
 import { deriveDocumentStatus } from "@/server/domain/document-status";
-import { assertPersonExists } from "@/server/validation/relations";
+import { validateModuleRelations } from "@/server/validation/relations";
 import { personDocumentCreateSchema, personDocumentPatchSchema } from "@/server/validation/schemas";
 
 function buildStoragePath(tenantId: string, personId: string, fileName: string) {
@@ -19,7 +19,7 @@ function buildStoragePath(tenantId: string, personId: string, fileName: string) 
 
 export async function GET(req: NextRequest) {
   try {
-    const context = await getTenantContext(req, "hr_people");
+    const context = await getTenantContext(req, "hr_people", "read");
     const data = await listEntities(context.tenantId, "personDocuments");
     return jsonOk({ data });
   } catch (error) {
@@ -29,14 +29,21 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const context = await getTenantContext(req, "hr_people");
+    const context = await getTenantContext(req, "hr_people", "write");
     const body = await req.json();
     const filePath = body.filePath || buildStoragePath(context.tenantId, body.personId, body.fileName);
     const parsed = personDocumentCreateSchema.parse({
       ...body,
       filePath
     });
-    await assertPersonExists(context.tenantId, parsed.personId);
+
+    await validateModuleRelations({
+      tenantId: context.tenantId,
+      moduleKey: "hr_people",
+      relationSet: "personDocuments",
+      payload: parsed,
+      mode: "create"
+    });
 
     const created = await createEntity(context.tenantId, "personDocuments", {
       ...parsed,
@@ -55,7 +62,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const context = await getTenantContext(req, "hr_people");
+    const context = await getTenantContext(req, "hr_people", "write");
     const payload = personDocumentPatchSchema.parse(await req.json());
     const { id, ...patch } = payload;
     const existing = await getEntity(context.tenantId, "personDocuments", id);
@@ -63,9 +70,13 @@ export async function PATCH(req: NextRequest) {
       throw new ApiError(404, "Document not found.");
     }
 
-    if (patch.personId) {
-      await assertPersonExists(context.tenantId, patch.personId);
-    }
+    await validateModuleRelations({
+      tenantId: context.tenantId,
+      moduleKey: "hr_people",
+      relationSet: "personDocuments",
+      payload: patch,
+      mode: "patch"
+    });
 
     const mergedExpiryDate = patch.expiryDate ?? existing.expiryDate;
     await patchEntity(context.tenantId, "personDocuments", id, {
