@@ -98,6 +98,7 @@ export interface Candidate extends BaseEntity {
 export interface PersonRecord extends BaseEntity {
   fullName: string;
   idNumber: string;
+  rutNormalized?: string | null;
   position: string;
   contractId: string | null;
   hireDate: string;
@@ -112,6 +113,49 @@ export interface PersonDocument extends BaseEntity {
   filePath: string;
   status: PersonDocumentStatus;
   expiryDate: string | null;
+}
+
+export interface PersonPayrollLineItem {
+  code: string;
+  label: string;
+  amount: number;
+}
+
+export interface PersonPayrollRecord extends BaseEntity {
+  personId: string;
+  period: string;
+  grossIncome: number;
+  netIncome: number;
+  currency: string;
+  source: string;
+  items: PersonPayrollLineItem[];
+}
+
+export type IntegrationDataset = "people" | "payroll";
+
+export type IntegrationRunStatus = "ok" | "partial" | "failed";
+
+export interface IntegrationImportError {
+  row: number;
+  code: string;
+  message: string;
+}
+
+export interface IntegrationImportRun extends BaseEntity {
+  source: string;
+  dataset: IntegrationDataset;
+  mode: "preview" | "commit";
+  status: IntegrationRunStatus;
+  actor: AuditActorInfo;
+  totals: {
+    received: number;
+    valid: number;
+    committed: number;
+    created: number;
+    updated: number;
+    errors: number;
+  };
+  errors: IntegrationImportError[];
 }
 
 export interface DashboardKpis {

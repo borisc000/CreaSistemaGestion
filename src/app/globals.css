@@ -340,6 +340,12 @@ p {
   border-color: #b7cae0;
 }
 
+.kpi-card:focus-within {
+  transform: translateY(-2px);
+  border-color: rgba(15, 91, 157, 0.45);
+  box-shadow: 0 16px 30px -24px rgba(15, 32, 51, 0.72);
+}
+
 .kpi-card p {
   margin: 0;
   font-size: 0.8rem;
@@ -366,6 +372,11 @@ p {
 .panel:hover {
   border-color: #cad8e8;
   box-shadow: 0 26px 46px -38px rgba(13, 31, 58, 0.82);
+}
+
+.panel:focus-within {
+  border-color: rgba(15, 91, 157, 0.45);
+  box-shadow: 0 28px 48px -36px rgba(13, 31, 58, 0.84);
 }
 
 .panel-head {
@@ -630,6 +641,11 @@ td select {
   cursor: grabbing;
 }
 
+.task-card:focus-visible {
+  outline: 2px solid rgba(21, 100, 170, 0.33);
+  outline-offset: 1px;
+}
+
 .task-card.is-dragging {
   opacity: 0.75;
   border-color: #6f95bf;
@@ -679,6 +695,11 @@ td select {
 
 .candidate-card:active {
   cursor: grabbing;
+}
+
+.candidate-card:focus-visible {
+  outline: 2px solid rgba(21, 100, 170, 0.33);
+  outline-offset: 1px;
 }
 
 .candidate-card:hover {
@@ -848,6 +869,47 @@ td select {
   font-size: 0.76rem;
   max-height: 260px;
   overflow: auto;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.detail-item {
+  border: 1px solid #dbe6f2;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 10px;
+  display: grid;
+  gap: 5px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.detail-item:hover {
+  transform: translateY(-1px);
+  border-color: #bdd1e6;
+  box-shadow: 0 12px 22px -20px rgba(15, 32, 51, 0.7);
+}
+
+.detail-item strong {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #36516e;
+}
+
+.detail-item p {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.import-area {
+  display: grid;
+  gap: 5px;
+  font-size: 0.86rem;
+  color: var(--text-soft);
 }
 
 .drag-handle {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ref, uploadBytes } from "firebase/storage";
 import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge, Toast } from "@/features/modules/module-ui";
@@ -8,7 +9,15 @@ import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
 import { formatDate } from "@/lib/format";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { firebaseStorage } from "@/lib/firebase/client";
-import type { Contract, EmploymentStatus, PersonDocument, PersonDocumentStatus, PersonRecord } from "@/types/domain";
+import { useApiClient } from "@/lib/api/use-api-client";
+import type {
+  Contract,
+  EmploymentStatus,
+  IntegrationDataset,
+  PersonDocument,
+  PersonDocumentStatus,
+  PersonRecord
+} from "@/types/domain";
 
 const EMPLOYMENT_STATUSES: EmploymentStatus[] = ["active", "on_leave", "inactive"];
 
@@ -22,7 +31,25 @@ function normalizeFileName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+type ImportApiResponse = {
+  data: {
+    runId?: string;
+    status?: string;
+    preview?: unknown[];
+    summary: {
+      received: number;
+      valid: number;
+      committed?: number;
+      created?: number;
+      updated?: number;
+      errors: number;
+    };
+    errors: Array<{ row: number; code: string; message: string }>;
+  };
+};
+
 export function HrPeoplePage() {
+  const api = useApiClient();
   const peopleApi = useCrudModule<PersonRecord>("/api/hr/people");
   const documentsApi = useCrudModule<PersonDocument>("/api/hr/documents");
   const contractsApi = useCrudModule<Contract>("/api/contracts");
@@ -49,6 +76,19 @@ export function HrPeoplePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importForm, setImportForm] = useState<{
+    dataset: IntegrationDataset;
+    source: string;
+    delimiter: "," | ";";
+    content: string;
+  }>({
+    dataset: "people",
+    source: "csv-manual",
+    delimiter: ";",
+    content: ""
+  });
+  const [importResult, setImportResult] = useState<ImportApiResponse["data"] | null>(null);
 
   const documentStats = useMemo(() => {
     const expired = documentsApi.items.filter((item) => item.status === "expired").length;
@@ -97,6 +137,45 @@ export function HrPeoplePage() {
       setToast({ message: "No se pudo subir documento.", tone: "error" });
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleImport(mode: "preview" | "commit") {
+    if (!importForm.content.trim()) {
+      setToast({ message: "Pega contenido CSV para importar.", tone: "error" });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const response = await api.post<ImportApiResponse>("/api/hr/imports", {
+        mode,
+        source: importForm.source,
+        dataset: importForm.dataset,
+        delimiter: importForm.delimiter,
+        content: importForm.content
+      });
+      setImportResult(response.data);
+
+      if (mode === "preview") {
+        setToast({ message: "Preview generado.", tone: "info" });
+      } else {
+        setToast({
+          message:
+            response.data.status === "ok"
+              ? "Importacion aplicada."
+              : "Importacion aplicada con observaciones.",
+          tone: response.data.status === "ok" ? "success" : "error"
+        });
+        await peopleApi.reload();
+      }
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : "No se pudo ejecutar importacion.",
+        tone: "error"
+      });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -266,6 +345,99 @@ export function HrPeoplePage() {
         </form>
       </Panel>
 
+      <Panel title="Importacion estandar (CSV)">
+        <p>Base integration-ready para alta/actualizacion de personas y nomina resumen.</p>
+        <div className="form-grid">
+          <label>
+            Dataset
+            <select
+              value={importForm.dataset}
+              onChange={(event) =>
+                setImportForm((prev) => ({ ...prev, dataset: event.target.value as IntegrationDataset }))
+              }
+            >
+              <option value="people">people</option>
+              <option value="payroll">payroll</option>
+            </select>
+          </label>
+          <label>
+            Origen
+            <input
+              value={importForm.source}
+              onChange={(event) => setImportForm((prev) => ({ ...prev, source: event.target.value }))}
+            />
+          </label>
+          <label>
+            Delimitador
+            <select
+              value={importForm.delimiter}
+              onChange={(event) =>
+                setImportForm((prev) => ({ ...prev, delimiter: event.target.value as "," | ";" }))
+              }
+            >
+              <option value=";">;</option>
+              <option value=",">,</option>
+            </select>
+          </label>
+        </div>
+        <label className="import-area">
+          CSV
+          <textarea
+            value={importForm.content}
+            onChange={(event) => setImportForm((prev) => ({ ...prev, content: event.target.value }))}
+            placeholder="idNumber;fullName;position;contractId;hireDate;employmentStatus;sourceCandidateId"
+          />
+        </label>
+        <div className="toolbar">
+          <button className="btn-secondary" type="button" disabled={importing} onClick={() => void handleImport("preview")}>
+            {importing ? "Procesando..." : "Preview"}
+          </button>
+          <button className="btn-primary" type="button" disabled={importing} onClick={() => void handleImport("commit")}>
+            {importing ? "Procesando..." : "Commit"}
+          </button>
+        </div>
+
+        {importResult ? (
+          <div className="diff-box">
+            <p>
+              Filas recibidas: <strong>{importResult.summary.received}</strong> | validas:{" "}
+              <strong>{importResult.summary.valid}</strong> | errores: <strong>{importResult.summary.errors}</strong>
+            </p>
+            {typeof importResult.summary.committed === "number" ? (
+              <p>
+                Committed: <strong>{importResult.summary.committed}</strong> | creadas:{" "}
+                <strong>{importResult.summary.created || 0}</strong> | actualizadas:{" "}
+                <strong>{importResult.summary.updated || 0}</strong>
+              </p>
+            ) : null}
+            {importResult.errors.length > 0 ? (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fila</th>
+                      <th>Codigo</th>
+                      <th>Mensaje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importResult.errors.slice(0, 20).map((item) => (
+                      <tr key={`${item.row}-${item.code}-${item.message}`}>
+                        <td>{item.row}</td>
+                        <td>{item.code}</td>
+                        <td>{item.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState message="Sin errores en la importacion." />
+            )}
+          </div>
+        ) : null}
+      </Panel>
+
       <Panel title="Personas y cumplimiento documental">
         <InlineError message={uploadError || peopleApi.error || documentsApi.error || contractsApi.error} />
         <div className="table-wrap">
@@ -273,17 +445,19 @@ export function HrPeoplePage() {
             <thead>
               <tr>
                 <th>Persona</th>
+                <th>RUT / ID</th>
                 <th>Cargo</th>
                 <th>Contrato</th>
                 <th>Ingreso</th>
                 <th>Estado</th>
                 <th>Cumplimiento</th>
+                <th>Detalle</th>
               </tr>
             </thead>
             <tbody>
               {peopleApi.items.length === 0 ? (
                 <tr className="table-empty-row">
-                  <td colSpan={6}>
+                  <td colSpan={8}>
                     <EmptyState message="Aun no hay personas cargadas en RRHH." />
                   </td>
                 </tr>
@@ -298,11 +472,17 @@ export function HrPeoplePage() {
                 return (
                   <tr key={person.id}>
                     <td>{person.fullName}</td>
+                    <td>{person.idNumber}</td>
                     <td>{person.position}</td>
                     <td>{contract?.name || "Sin contrato"}</td>
                     <td>{formatDate(person.hireDate)}</td>
                     <td>{person.employmentStatus}</td>
                     <td>{completed}/{REQUIRED_PERSON_DOCUMENT_TYPES.length}</td>
+                    <td>
+                      <Link className="btn-secondary" href={`/rrhh/personas/${person.id}`}>
+                        Ver ficha
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}

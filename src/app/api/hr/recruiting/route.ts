@@ -60,6 +60,7 @@ async function ensurePersonRecordForHiredCandidate(
     {
       fullName: candidate.name,
       idNumber: buildPendingIdNumber(candidate.id),
+      rutNormalized: null,
       position: vacancy.title,
       contractId: vacancy.contractId ?? null,
       hireDate: candidate.hiredAt || new Date().toISOString().slice(0, 10),
