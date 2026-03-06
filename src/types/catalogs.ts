@@ -7,13 +7,3 @@ export const EMPLOYMENT_STATUSES = ["active", "on_leave", "inactive"] as const;
 export const PERSON_DOCUMENT_STATUSES = ["uploaded", "pending", "expiring", "expired"] as const;
 
 export const REQUIRED_PERSON_DOCUMENT_TYPES = ["Contrato", "Carnet"] as const;
-
-export const MODULE_KEYS = [
-  "dashboard",
-  "tenders",
-  "contracts",
-  "operations",
-  "finance",
-  "hr_recruiting",
-  "hr_people"
-] as const;

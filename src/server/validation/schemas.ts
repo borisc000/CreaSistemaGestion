@@ -79,7 +79,8 @@ export const candidateCreateSchema = z.object({
   source: z.string().min(2),
   salary: z.number().nonnegative(),
   stage: z.enum(CANDIDATE_STAGES),
-  hiredAt: z.string().nullable().optional()
+  hiredAt: z.string().nullable().optional(),
+  personRecordId: z.string().nullable().optional()
 });
 
 export const candidatePatchSchema = candidateCreateSchema.partial().extend({ id: idSchema });
@@ -90,7 +91,8 @@ export const personRecordCreateSchema = z.object({
   position: z.string().min(2),
   contractId: z.string().nullable(),
   hireDate: isoDateSchema,
-  employmentStatus: z.enum(EMPLOYMENT_STATUSES)
+  employmentStatus: z.enum(EMPLOYMENT_STATUSES),
+  sourceCandidateId: z.string().nullable().optional()
 });
 
 export const personRecordPatchSchema = personRecordCreateSchema.partial().extend({ id: idSchema });

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import type { CollectionKey } from "@/types/collections";
 import type {
   Candidate,
   Contract,
@@ -11,16 +12,6 @@ import type {
   Tender,
   Vacancy
 } from "@/types/domain";
-
-export type CollectionKey =
-  | "tenders"
-  | "contracts"
-  | "operationTasks"
-  | "financeEntries"
-  | "vacancies"
-  | "candidates"
-  | "peopleRecords"
-  | "personDocuments";
 
 type EntityMap = {
   tenders: Tender;

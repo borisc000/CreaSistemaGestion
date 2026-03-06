@@ -64,6 +64,7 @@ Route Handlers:
 - `/api/hr/people`
 - `/api/hr/documents`
 - `/api/dashboard`
+- `/api/modules` (metadata de modulos habilitados)
 
 Roles (custom claims):
 
@@ -126,9 +127,19 @@ npm run functions:build
 Funciones incluidas:
 
 - `syncDocumentStatuses`: job diario para recalcular estado documental + alertas
-- `auditContractChanges`: auditoria sobre contratos
-- `auditFinanceChanges`: auditoria sobre finanzas
+- `auditContractChanges`: auditoria sobre contratos (configurable por coleccion)
+- `auditFinanceChanges`: auditoria sobre finanzas (configurable por coleccion)
 - `assignUserRole`: callable para asignar rol/tenant (solo admin)
+
+## Datos demo
+
+Cargar dataset ficticio idempotente (2 flujos integrados entre modulos):
+
+```powershell
+npm run seed:demo
+```
+
+Por defecto usa `NEXT_PUBLIC_DEFAULT_TENANT_ID` (o `SEED_TENANT_ID` si se define).
 
 ## Seguridad Firebase
 
@@ -138,6 +149,12 @@ Archivos incluidos:
 - `storage.rules`
 - `firestore.indexes.json`
 - `firebase.json`
+
+Generar `firestore.rules` desde el Module Registry:
+
+```powershell
+npm run rules:generate
+```
 
 Ejecutar Emulator Suite:
 

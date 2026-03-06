@@ -1,16 +1,36 @@
+import { getEnabledModules } from "@/modules/registry";
 import { listEntities } from "@/server/repositories/firestore-repository";
+import type { CollectionKey } from "@/types/collections";
 import type { DashboardKpis } from "@/types/domain";
 
+function uniqueCollectionsForDashboard(): CollectionKey[] {
+  const collectionSet = new Set<CollectionKey>();
+  for (const moduleDefinition of getEnabledModules()) {
+    if (!moduleDefinition.dashboardContributors?.length) {
+      continue;
+    }
+    for (const collectionKey of moduleDefinition.collectionKeys) {
+      collectionSet.add(collectionKey);
+    }
+  }
+  return Array.from(collectionSet);
+}
+
 export async function computeDashboardKpis(tenantId: string): Promise<DashboardKpis> {
-  const [tenders, contracts, operations, finance, vacancies, candidates, personDocuments] = await Promise.all([
-    listEntities(tenantId, "tenders"),
-    listEntities(tenantId, "contracts"),
-    listEntities(tenantId, "operationTasks"),
-    listEntities(tenantId, "financeEntries"),
-    listEntities(tenantId, "vacancies"),
-    listEntities(tenantId, "candidates"),
-    listEntities(tenantId, "personDocuments")
-  ]);
+  const collections = uniqueCollectionsForDashboard();
+  const results = await Promise.all(collections.map((collectionKey) => listEntities(tenantId, collectionKey)));
+
+  const dataByCollection = Object.fromEntries(collections.map((collectionKey, index) => [collectionKey, results[index]])) as Partial<
+    Record<CollectionKey, Array<Record<string, unknown>>>
+  >;
+
+  const tenders = (dataByCollection.tenders || []) as Array<{ status: string; amount: number; closeDate: string }>;
+  const contracts = (dataByCollection.contracts || []) as Array<{ status: string }>;
+  const operations = (dataByCollection.operationTasks || []) as Array<{ status: string }>;
+  const finance = (dataByCollection.financeEntries || []) as Array<{ dueDate: string; type: string; amount: number }>;
+  const vacancies = (dataByCollection.vacancies || []) as Array<{ status: string }>;
+  const candidates = (dataByCollection.candidates || []) as Array<{ stage: string }>;
+  const personDocuments = (dataByCollection.personDocuments || []) as Array<{ status: string }>;
 
   const now = new Date();
   const monthFinance = finance.filter((entry) => {

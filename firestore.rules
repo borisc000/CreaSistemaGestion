@@ -24,29 +24,31 @@ service cloud.firestore {
 
     function canReadCollection(collection) {
       return (
-        (collection == "tenders" && hasRole(["admin", "tender_lead", "viewer"])) ||
-        (collection == "contracts" && hasRole(["admin", "tender_lead", "contract_manager", "viewer"])) ||
-        (collection == "operationTasks" && hasRole(["admin", "contract_manager", "viewer"])) ||
-        (collection == "financeEntries" && hasRole(["admin", "finance", "viewer"])) ||
-        (collection == "vacancies" && hasRole(["admin", "hr", "viewer"])) ||
-        (collection == "candidates" && hasRole(["admin", "hr", "viewer"])) ||
-        (collection == "peopleRecords" && hasRole(["admin", "hr", "viewer"])) ||
-        (collection == "personDocuments" && hasRole(["admin", "hr", "viewer"])) ||
         (collection == "alerts" && hasRole(["admin", "contract_manager", "finance", "hr"])) ||
-        (collection == "auditLogs" && hasRole(["admin"]))
+        (collection == "auditLogs" && hasRole(["admin"])) ||
+        (collection == "candidates" && hasRole(["admin", "hr"])) ||
+        (collection == "contracts" && hasRole(["admin", "contract_manager", "finance", "hr", "tender_lead"])) ||
+        (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
+        (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
+        (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
+        (collection == "personDocuments" && hasRole(["admin", "hr"])) ||
+        (collection == "tenders" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
+        (collection == "vacancies" && hasRole(["admin", "hr"]))
       );
     }
 
     function canWriteCollection(collection) {
       return (
-        (collection == "tenders" && hasRole(["admin", "tender_lead"])) ||
-        (collection == "contracts" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
-        (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
-        (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
-        (collection == "vacancies" && hasRole(["admin", "hr"])) ||
+        (collection == "alerts" && hasRole([])) ||
+        (collection == "auditLogs" && hasRole([])) ||
         (collection == "candidates" && hasRole(["admin", "hr"])) ||
+        (collection == "contracts" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
+        (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
+        (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
         (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
-        (collection == "personDocuments" && hasRole(["admin", "hr"]))
+        (collection == "personDocuments" && hasRole(["admin", "hr"])) ||
+        (collection == "tenders" && hasRole(["admin", "tender_lead"])) ||
+        (collection == "vacancies" && hasRole(["admin", "hr"]))
       );
     }
 

@@ -5,7 +5,7 @@ import { computeDashboardKpis } from "@/server/services/dashboard";
 
 export async function GET(req: NextRequest) {
   try {
-    const context = await getTenantContext(req, "dashboard");
+    const context = await getTenantContext(req, "dashboard", "read");
     const data = await computeDashboardKpis(context.tenantId);
     return jsonOk({ data });
   } catch (error) {

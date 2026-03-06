@@ -2,15 +2,16 @@ import type {
   CANDIDATE_STAGES,
   CONTRACT_STATUSES,
   EMPLOYMENT_STATUSES,
-  MODULE_KEYS,
   OPERATION_TASK_STATUSES,
   PERSON_DOCUMENT_STATUSES,
   TENDER_STATUSES,
   VACANCY_STATUSES
 } from "@/types/catalogs";
+import type { UserRole as AuthUserRole } from "@/types/auth";
+import type { ModuleKey as RegistryModuleKey } from "@/modules/registry";
 
-export type UserRole = "admin" | "tender_lead" | "contract_manager" | "finance" | "hr" | "viewer";
-export type ModuleKey = (typeof MODULE_KEYS)[number];
+export type UserRole = AuthUserRole;
+export type ModuleKey = RegistryModuleKey;
 
 export type TenderStatus = (typeof TENDER_STATUSES)[number];
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
@@ -91,6 +92,7 @@ export interface Candidate extends BaseEntity {
   salary: number;
   stage: CandidateStage;
   hiredAt: string | null;
+  personRecordId?: string | null;
 }
 
 export interface PersonRecord extends BaseEntity {
@@ -100,6 +102,7 @@ export interface PersonRecord extends BaseEntity {
   contractId: string | null;
   hireDate: string;
   employmentStatus: EmploymentStatus;
+  sourceCandidateId?: string | null;
 }
 
 export interface PersonDocument extends BaseEntity {
