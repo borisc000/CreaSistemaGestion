@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useApiClient } from "@/lib/api/use-api-client";
 import { formatCurrency } from "@/lib/format";
@@ -53,6 +54,20 @@ export function DashboardPage() {
           Este dashboard consume datos reales desde Firestore (tenant-aware). Si no ves resultados, valida claims de rol,
           tenant activo y configuracion Firebase.
         </p>
+      </Panel>
+
+      <Panel title="Accesos rapidos">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Link className="btn-secondary" href="/rrhh/reclutamiento">
+            Nueva vacante
+          </Link>
+          <Link className="btn-secondary" href="/contratos">
+            Nuevo contrato
+          </Link>
+          <Link className="btn-secondary" href="/finanzas">
+            Nuevo movimiento financiero
+          </Link>
+        </div>
       </Panel>
     </ModulePage>
   );

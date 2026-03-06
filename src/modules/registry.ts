@@ -269,6 +269,42 @@ const MODULE_REGISTRY_INTERNAL = {
       groupOrder: 60,
       visibleForRoles: ["admin", "hr"]
     }
+  },
+  admin_users: {
+    moduleKey: "admin_users",
+    label: "Administracion de usuarios",
+    route: "/administracion/usuarios",
+    apiBase: "/api/admin/users",
+    collectionKeys: [],
+    enabled: true,
+    accessPolicy: buildAccessPolicy(["admin"], ["admin"]),
+    navigation: {
+      label: "Usuarios y roles",
+      href: "/administracion/usuarios",
+      order: 100,
+      groupLabel: "Administracion",
+      groupHref: "/administracion",
+      groupOrder: 90,
+      visibleForRoles: ["admin"]
+    }
+  },
+  audit: {
+    moduleKey: "audit",
+    label: "Auditoria",
+    route: "/auditoria",
+    apiBase: "/api/audit",
+    collectionKeys: [],
+    enabled: true,
+    accessPolicy: buildAccessPolicy(["admin"], ["admin"]),
+    navigation: {
+      label: "Auditoria",
+      href: "/auditoria",
+      order: 110,
+      groupLabel: "Administracion",
+      groupHref: "/administracion",
+      groupOrder: 90,
+      visibleForRoles: ["admin"]
+    }
   }
 } satisfies Record<string, ModuleDefinition>;
 

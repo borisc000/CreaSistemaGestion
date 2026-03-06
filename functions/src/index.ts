@@ -98,23 +98,107 @@ export const syncDocumentStatuses = onSchedule(
 
 const AUDIT_COLLECTIONS = [
   {
-    exportName: "auditContractChanges",
+    collection: "tenders",
+    moduleName: "tenders"
+  },
+  {
     collection: "contracts",
     moduleName: "contracts"
   },
   {
-    exportName: "auditFinanceChanges",
+    collection: "operationTasks",
+    moduleName: "operationTasks"
+  },
+  {
     collection: "financeEntries",
     moduleName: "financeEntries"
+  },
+  {
+    collection: "vacancies",
+    moduleName: "vacancies"
+  },
+  {
+    collection: "candidates",
+    moduleName: "candidates"
+  },
+  {
+    collection: "peopleRecords",
+    moduleName: "peopleRecords"
+  },
+  {
+    collection: "personDocuments",
+    moduleName: "personDocuments"
   }
 ] as const;
 
 type AuditableCollection = (typeof AUDIT_COLLECTIONS)[number]["collection"];
 type AuditableModuleName = (typeof AUDIT_COLLECTIONS)[number]["moduleName"];
 
+const AUDIT_IGNORED_FIELDS = new Set(["createdAt", "updatedAt", "updatedByUid", "updatedByEmail", "updatedByRole"]);
+
+function deepEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (typeof left !== typeof right) return false;
+  if (left === null || right === null) return false;
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+      if (!deepEqual(left[index], right[index])) return false;
+    }
+    return true;
+  }
+
+  if (typeof left === "object" && typeof right === "object") {
+    const leftRecord = left as Record<string, unknown>;
+    const rightRecord = right as Record<string, unknown>;
+    const keys = new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)]);
+    for (const key of keys) {
+      if (!deepEqual(leftRecord[key], rightRecord[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function computeChangedFields(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null
+): string[] {
+  const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+  return Array.from(keys)
+    .filter((field) => !AUDIT_IGNORED_FIELDS.has(field))
+    .filter((field) => !deepEqual(before?.[field], after?.[field]))
+    .sort();
+}
+
+function resolveAuditActor(before: Record<string, unknown> | null, after: Record<string, unknown> | null) {
+  const uid = (after?.updatedByUid as string | undefined) || (before?.updatedByUid as string | undefined) || null;
+  const email = (after?.updatedByEmail as string | undefined) || (before?.updatedByEmail as string | undefined) || null;
+  const role = (after?.updatedByRole as string | undefined) || (before?.updatedByRole as string | undefined) || null;
+
+  if (!uid && !email && !role) {
+    return {
+      uid: null,
+      email: null,
+      role: null,
+      source: "system"
+    };
+  }
+
+  return {
+    uid,
+    email,
+    role,
+    source: "user"
+  };
+}
+
 async function writeAuditEntry(
   tenantId: string,
   moduleName: AuditableModuleName,
+  collection: AuditableCollection,
   docId: string,
   before: Record<string, unknown> | null,
   after: Record<string, unknown> | null
@@ -127,8 +211,11 @@ async function writeAuditEntry(
     .collection("auditLogs")
     .add({
       module: moduleName,
+      collection,
       entityId: docId,
       eventType,
+      actor: resolveAuditActor(before, after),
+      changedFields: computeChangedFields(before, after),
       before,
       after,
       createdAt: FieldValue.serverTimestamp()
@@ -142,12 +229,18 @@ function createAuditTrigger(collection: AuditableCollection, moduleName: Auditab
     const before = event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : null;
     const after = event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : null;
 
-    await writeAuditEntry(tenantId, moduleName, docId, before, after);
+    await writeAuditEntry(tenantId, moduleName, collection, docId, before, after);
   });
 }
 
+export const auditTenderChanges = createAuditTrigger("tenders", "tenders");
 export const auditContractChanges = createAuditTrigger("contracts", "contracts");
+export const auditOperationChanges = createAuditTrigger("operationTasks", "operationTasks");
 export const auditFinanceChanges = createAuditTrigger("financeEntries", "financeEntries");
+export const auditVacancyChanges = createAuditTrigger("vacancies", "vacancies");
+export const auditCandidateChanges = createAuditTrigger("candidates", "candidates");
+export const auditPeopleChanges = createAuditTrigger("peopleRecords", "peopleRecords");
+export const auditPersonDocumentChanges = createAuditTrigger("personDocuments", "personDocuments");
 
 export const assignUserRole = onCall(async (request) => {
   if (!request.auth) {

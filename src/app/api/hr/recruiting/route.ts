@@ -3,6 +3,7 @@ import { type NextRequest } from "next/server";
 import { getTenantContext } from "@/server/auth/request-context";
 import { ApiError, jsonError, jsonOk } from "@/server/api/response";
 import { createEntity, getEntity, listEntities, patchEntity } from "@/server/repositories/firestore-repository";
+import type { WriteActor } from "@/server/repositories/firestore-repository";
 import { validateModuleRelations } from "@/server/validation/relations";
 import {
   candidateCreateSchema,
@@ -26,7 +27,11 @@ function buildPendingIdNumber(candidateId: string): string {
   return `PENDING-${candidateId.slice(0, 8).toUpperCase()}`;
 }
 
-async function ensurePersonRecordForHiredCandidate(tenantId: string, candidate: Candidate): Promise<string | null> {
+async function ensurePersonRecordForHiredCandidate(
+  tenantId: string,
+  candidate: Candidate,
+  actor: WriteActor
+): Promise<string | null> {
   if (candidate.stage !== "hired") {
     return candidate.personRecordId ?? null;
   }
@@ -49,15 +54,20 @@ async function ensurePersonRecordForHiredCandidate(tenantId: string, candidate: 
     throw new ApiError(400, "Referenced vacancy does not exist.");
   }
 
-  const createdPerson = await createEntity(tenantId, "peopleRecords", {
-    fullName: candidate.name,
-    idNumber: buildPendingIdNumber(candidate.id),
-    position: vacancy.title,
-    contractId: vacancy.contractId ?? null,
-    hireDate: candidate.hiredAt || new Date().toISOString().slice(0, 10),
-    employmentStatus: "active",
-    sourceCandidateId: candidate.id
-  } as Omit<PersonRecord, "id" | "createdAt" | "updatedAt">);
+  const createdPerson = await createEntity(
+    tenantId,
+    "peopleRecords",
+    {
+      fullName: candidate.name,
+      idNumber: buildPendingIdNumber(candidate.id),
+      position: vacancy.title,
+      contractId: vacancy.contractId ?? null,
+      hireDate: candidate.hiredAt || new Date().toISOString().slice(0, 10),
+      employmentStatus: "active",
+      sourceCandidateId: candidate.id
+    } as Omit<PersonRecord, "id" | "createdAt" | "updatedAt">,
+    actor
+  );
 
   return createdPerson.id;
 }
@@ -89,7 +99,11 @@ export async function POST(req: NextRequest) {
         mode: "create"
       });
 
-      const created = await createEntity(context.tenantId, "vacancies", parsed.payload);
+      const created = await createEntity(context.tenantId, "vacancies", parsed.payload, {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      });
       return jsonOk({ data: created }, 201);
     }
 
@@ -101,15 +115,38 @@ export async function POST(req: NextRequest) {
       mode: "create"
     });
 
-    const created = await createEntity(context.tenantId, "candidates", {
-      ...parsed.payload,
-      hiredAt: parsed.payload.hiredAt ?? null,
-      personRecordId: parsed.payload.personRecordId ?? null
-    });
+    const created = await createEntity(
+      context.tenantId,
+      "candidates",
+      {
+        ...parsed.payload,
+        hiredAt: parsed.payload.hiredAt ?? null,
+        personRecordId: parsed.payload.personRecordId ?? null
+      },
+      {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      }
+    );
 
-    const personRecordId = await ensurePersonRecordForHiredCandidate(context.tenantId, created as Candidate);
+    const personRecordId = await ensurePersonRecordForHiredCandidate(context.tenantId, created as Candidate, {
+      uid: context.uid,
+      email: context.email,
+      role: context.role
+    });
     if (personRecordId && personRecordId !== (created as Candidate).personRecordId) {
-      await patchEntity(context.tenantId, "candidates", created.id, { personRecordId });
+      await patchEntity(
+        context.tenantId,
+        "candidates",
+        created.id,
+        { personRecordId },
+        {
+          uid: context.uid,
+          email: context.email,
+          role: context.role
+        }
+      );
       (created as Candidate).personRecordId = personRecordId;
     }
 
@@ -138,7 +175,17 @@ export async function PATCH(req: NextRequest) {
         mode: "patch"
       });
 
-      await patchEntity(context.tenantId, "vacancies", id, patch);
+      await patchEntity(
+        context.tenantId,
+        "vacancies",
+        id,
+        patch,
+        {
+          uid: context.uid,
+          email: context.email,
+          role: context.role
+        }
+      );
       return jsonOk({ ok: true });
     }
 
@@ -156,7 +203,17 @@ export async function PATCH(req: NextRequest) {
       mode: "patch"
     });
 
-    await patchEntity(context.tenantId, "candidates", id, patch);
+    await patchEntity(
+      context.tenantId,
+      "candidates",
+      id,
+      patch,
+      {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      }
+    );
 
     const mergedCandidate: Candidate = {
       ...existingCandidate,
@@ -164,9 +221,23 @@ export async function PATCH(req: NextRequest) {
       id
     };
 
-    const personRecordId = await ensurePersonRecordForHiredCandidate(context.tenantId, mergedCandidate);
+    const personRecordId = await ensurePersonRecordForHiredCandidate(context.tenantId, mergedCandidate, {
+      uid: context.uid,
+      email: context.email,
+      role: context.role
+    });
     if (personRecordId && personRecordId !== mergedCandidate.personRecordId) {
-      await patchEntity(context.tenantId, "candidates", id, { personRecordId });
+      await patchEntity(
+        context.tenantId,
+        "candidates",
+        id,
+        { personRecordId },
+        {
+          uid: context.uid,
+          email: context.email,
+          role: context.role
+        }
+      );
     }
 
     return jsonOk({ ok: true });

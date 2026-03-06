@@ -70,7 +70,11 @@ export function buildCrudHandlers<TCreate extends z.ZodTypeAny, TPatch extends z
         await config.beforeCreate({ tenantId: context.tenantId, createPayload: parsed });
       }
 
-      const created = await createEntity(context.tenantId, collectionKey, parsed as never);
+      const created = await createEntity(context.tenantId, collectionKey, parsed as never, {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      });
       return jsonOk({ data: created }, 201);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -99,7 +103,11 @@ export function buildCrudHandlers<TCreate extends z.ZodTypeAny, TPatch extends z
         await config.beforePatch({ tenantId: context.tenantId, patchPayload: parsed });
       }
 
-      await patchEntity(context.tenantId, collectionKey, id, patch as never);
+      await patchEntity(context.tenantId, collectionKey, id, patch as never, {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      });
       return jsonOk({ ok: true });
     } catch (error) {
       if (error instanceof z.ZodError) {

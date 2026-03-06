@@ -124,3 +124,33 @@ export interface DashboardKpis {
   activeCandidates: number;
   expiredDocuments: number;
 }
+
+export interface AdminUserSummary {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  disabled: boolean;
+  lastSignInTime: string | null;
+  role: UserRole;
+  tenantId: string | null;
+}
+
+export interface AuditActorInfo {
+  uid: string | null;
+  email: string | null;
+  role: UserRole | null;
+  source: "user" | "system";
+}
+
+export interface AuditLogEntry {
+  id: string;
+  module: string;
+  collection: string;
+  entityId: string;
+  eventType: "created" | "updated" | "deleted";
+  createdAt: string;
+  actor: AuditActorInfo;
+  changedFields: string[];
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}

@@ -52,3 +52,24 @@ export function StatusBadge({ tone, children }: { tone: "good" | "warn" | "risk"
 export function EmptyState({ message }: { message: string }) {
   return <div className="empty-state">{message}</div>;
 }
+
+export function SkeletonRows({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="skeleton-stack" aria-hidden>
+      {Array.from({ length: rows }).map((_, index) => (
+        <div className="skeleton-row" key={`skeleton-${index}`} />
+      ))}
+    </div>
+  );
+}
+
+export function Toast({
+  message,
+  tone = "info"
+}: {
+  message: string | null;
+  tone?: "info" | "success" | "error";
+}) {
+  if (!message) return null;
+  return <p className={clsx("toast", `toast-${tone}`)}>{message}</p>;
+}

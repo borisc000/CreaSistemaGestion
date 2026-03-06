@@ -1,7 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import clsx from "clsx";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCorners,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent
+} from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
@@ -23,6 +39,74 @@ function stageBadgeClass(stage: CandidateStage): string {
   return "badge badge-warning";
 }
 
+function resolveStageFromDropTarget(overId: string | number, candidates: Candidate[]): CandidateStage | null {
+  const normalized = String(overId);
+
+  if (normalized.startsWith("stage-")) {
+    const candidateStage = normalized.replace("stage-", "");
+    if (CANDIDATE_STAGES.includes(candidateStage as CandidateStage)) {
+      return candidateStage as CandidateStage;
+    }
+  }
+
+  const targetCandidate = candidates.find((candidate) => candidate.id === normalized);
+  return targetCandidate?.stage || null;
+}
+
+function StageDropZone({
+  stage,
+  count,
+  children
+}: {
+  stage: CandidateStage;
+  count: number;
+  children: ReactNode;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `stage-${stage}`
+  });
+
+  return (
+    <section className={clsx("stage-column", isOver && "is-over")} ref={setNodeRef}>
+      <header className="stage-head">
+        <h3>{stage}</h3>
+        <span className="stage-count">{count}</span>
+      </header>
+      <div className="candidate-list">{children}</div>
+    </section>
+  );
+}
+
+function SortableCandidateCard({
+  candidate,
+  vacancy
+}: {
+  candidate: Candidate;
+  vacancy: Vacancy | undefined;
+}) {
+  const { attributes, listeners, isDragging, setNodeRef, transform, transition } = useSortable({
+    id: candidate.id
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <article className={clsx("candidate-card", isDragging && "is-dragging")} ref={setNodeRef} style={style}>
+      <strong>{candidate.name}</strong>
+      <p>{vacancy?.title || "Vacante no encontrada"}</p>
+      <p>{candidate.source}</p>
+      <p>{formatCurrency(candidate.salary)}</p>
+      <span className={stageBadgeClass(candidate.stage)}>{candidate.stage}</span>
+      <button className="drag-handle" type="button" {...attributes} {...listeners} aria-label={`Mover ${candidate.name}`}>
+        Arrastrar
+      </button>
+    </article>
+  );
+}
+
 export function HrRecruitingPage() {
   const api = useApiClient();
   const contractsApi = useCrudModule<Contract>("/api/contracts");
@@ -31,6 +115,8 @@ export function HrRecruitingPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
 
   const [vacancyForm, setVacancyForm] = useState({
     title: "",
@@ -49,6 +135,12 @@ export function HrRecruitingPage() {
     stage: "intake" as CandidateStage,
     hiredAt: ""
   });
+
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const load = useCallback(async () => {
     setPending(true);
@@ -73,6 +165,11 @@ export function HrRecruitingPage() {
     [candidates]
   );
 
+  const activeDragCandidate = useMemo(
+    () => candidates.find((candidate) => candidate.id === activeCandidateId) || null,
+    [activeCandidateId, candidates]
+  );
+
   const submitVacancy = useCallback(async () => {
     setPending(true);
     setError(null);
@@ -88,6 +185,7 @@ export function HrRecruitingPage() {
 
       setVacancyForm({ title: "", area: "", contractId: "", openings: 1, targetDate: "", status: "open" });
       await load();
+      setToast({ message: "Vacante creada.", tone: "success" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear vacante.");
       setPending(false);
@@ -108,17 +206,68 @@ export function HrRecruitingPage() {
 
       setCandidateForm({ vacancyId: "", name: "", source: "", salary: 0, stage: "intake", hiredAt: "" });
       await load();
+      setToast({ message: "Candidato creado.", tone: "success" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear candidato.");
       setPending(false);
     }
   }, [api, candidateForm, load]);
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveCandidateId(String(event.active.id));
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const draggedCandidateId = String(event.active.id);
+      setActiveCandidateId(null);
+
+      if (!event.over) return;
+      const movingCandidate = candidates.find((candidate) => candidate.id === draggedCandidateId);
+      if (!movingCandidate) return;
+
+      const targetStage = resolveStageFromDropTarget(event.over.id, candidates);
+      if (!targetStage || targetStage === movingCandidate.stage) {
+        return;
+      }
+
+      const previousCandidates = candidates;
+      const optimisticCandidates = candidates.map((candidate) =>
+        candidate.id === movingCandidate.id
+          ? {
+              ...candidate,
+              stage: targetStage,
+              hiredAt: targetStage === "hired" && !candidate.hiredAt ? new Date().toISOString().slice(0, 10) : candidate.hiredAt
+            }
+          : candidate
+      );
+      setCandidates(optimisticCandidates);
+
+      try {
+        await api.patch("/api/hr/recruiting", {
+          resource: "candidate",
+          payload: {
+            id: movingCandidate.id,
+            stage: targetStage,
+            hiredAt: targetStage === "hired" && !movingCandidate.hiredAt ? new Date().toISOString().slice(0, 10) : movingCandidate.hiredAt
+          }
+        });
+        setToast({ message: `Candidato movido a ${targetStage}.`, tone: "success" });
+      } catch (err) {
+        setCandidates(previousCandidates);
+        setError(err instanceof Error ? err.message : "No se pudo actualizar etapa del candidato.");
+        setToast({ message: "No se pudo mover candidato, se revirtio el cambio.", tone: "error" });
+      }
+    },
+    [api, candidates]
+  );
+
   return (
     <ModulePage
       title="RRHH - Reclutamiento y seleccion"
       description="Gestion de vacantes por contrato y seguimiento de candidatos por etapa."
     >
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
         items={[
           { label: "Vacantes", value: vacancies.length },
@@ -338,35 +487,35 @@ export function HrRecruitingPage() {
         </div>
       </Panel>
 
-      <Panel title="Pipeline por etapa">
-        <div className="pipeline-board">
-          {CANDIDATE_STAGES.map((stage) => {
-            const stageCandidates = candidates.filter((candidate) => candidate.stage === stage);
-            return (
-              <section className="stage-column" key={stage}>
-                <header className="stage-head">
-                  <h3>{stage}</h3>
-                  <span className="stage-count">{stageCandidates.length}</span>
-                </header>
-                <div className="candidate-list">
-                  {stageCandidates.length === 0 ? <EmptyState message="Sin candidatos en esta etapa." /> : null}
-                  {stageCandidates.map((candidate) => {
-                    const vacancy = vacancies.find((item) => item.id === candidate.vacancyId);
-                    return (
-                      <article className="candidate-card" key={candidate.id}>
-                        <strong>{candidate.name}</strong>
-                        <p>{vacancy?.title || "Vacante no encontrada"}</p>
-                        <p>{candidate.source}</p>
-                        <p>{formatCurrency(candidate.salary)}</p>
-                        <span className={stageBadgeClass(candidate.stage)}>{candidate.stage}</span>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+      <Panel title="Pipeline por etapa (drag & drop)">
+        <p className="drag-handle">Puedes arrastrar con mouse/touch para mover candidatos entre etapas.</p>
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="pipeline-board">
+            {CANDIDATE_STAGES.map((stage) => {
+              const stageCandidates = candidates.filter((candidate) => candidate.stage === stage);
+              return (
+                <StageDropZone stage={stage} count={stageCandidates.length} key={stage}>
+                  <SortableContext items={stageCandidates.map((candidate) => candidate.id)} strategy={verticalListSortingStrategy}>
+                    {stageCandidates.length === 0 ? <EmptyState message="Sin candidatos en esta etapa." /> : null}
+                    {stageCandidates.map((candidate) => {
+                      const vacancy = vacancies.find((item) => item.id === candidate.vacancyId);
+                      return <SortableCandidateCard candidate={candidate} vacancy={vacancy} key={candidate.id} />;
+                    })}
+                  </SortableContext>
+                </StageDropZone>
+              );
+            })}
+          </div>
+          <DragOverlay>
+            {activeDragCandidate ? (
+              <article className="candidate-card is-dragging">
+                <strong>{activeDragCandidate.name}</strong>
+                <p>{activeDragCandidate.source}</p>
+                <p>{formatCurrency(activeDragCandidate.salary)}</p>
+              </article>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </Panel>
 
       <Panel title="Candidatos">

@@ -100,9 +100,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <strong>{ROLE_LABELS[role]}</strong>
             <span>{user?.email || "Sin email"}</span>
           </div>
-          <button className="btn-secondary" onClick={() => logout()} type="button">
-            Cerrar sesion
-          </button>
+          <div className="topbar-actions">
+            {role === "admin" ? (
+              <Link className="pill" href="/auditoria">
+                Auditoria
+              </Link>
+            ) : null}
+            <button className="btn-secondary" onClick={() => logout()} type="button">
+              Cerrar sesion
+            </button>
+          </div>
         </header>
 
         {menuOpen ? <button className="overlay" onClick={() => setMenuOpen(false)} type="button" aria-label="Cerrar menu" /> : null}

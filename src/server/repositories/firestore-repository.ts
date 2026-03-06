@@ -10,6 +10,7 @@ import type {
   PersonDocument,
   PersonRecord,
   Tender,
+  UserRole,
   Vacancy
 } from "@/types/domain";
 
@@ -22,6 +23,12 @@ type EntityMap = {
   candidates: Candidate;
   peopleRecords: PersonRecord;
   personDocuments: PersonDocument;
+};
+
+export type WriteActor = {
+  uid: string;
+  email: string | null;
+  role: UserRole;
 };
 
 function tenantCollection(tenantId: string, key: CollectionKey) {
@@ -55,12 +62,16 @@ export async function listEntities<K extends CollectionKey>(tenantId: string, ke
 export async function createEntity<K extends CollectionKey>(
   tenantId: string,
   key: K,
-  payload: Omit<EntityMap[K], "id" | "createdAt" | "updatedAt">
+  payload: Omit<EntityMap[K], "id" | "createdAt" | "updatedAt">,
+  actor?: WriteActor
 ): Promise<EntityMap[K]> {
   const id = randomUUID();
   const now = new Date().toISOString();
   await tenantCollection(tenantId, key).doc(id).set({
     ...payload,
+    updatedByUid: actor?.uid || null,
+    updatedByEmail: actor?.email || null,
+    updatedByRole: actor?.role || null,
     createdAt: now,
     updatedAt: now
   });
@@ -77,11 +88,15 @@ export async function patchEntity<K extends CollectionKey>(
   tenantId: string,
   key: K,
   id: string,
-  patch: Partial<Omit<EntityMap[K], "id" | "createdAt" | "updatedAt">>
+  patch: Partial<Omit<EntityMap[K], "id" | "createdAt" | "updatedAt">>,
+  actor?: WriteActor
 ): Promise<void> {
   await tenantCollection(tenantId, key).doc(id).set(
     {
       ...patch,
+      updatedByUid: actor?.uid || null,
+      updatedByEmail: actor?.email || null,
+      updatedByRole: actor?.role || null,
       updatedAt: new Date().toISOString()
     },
     { merge: true }

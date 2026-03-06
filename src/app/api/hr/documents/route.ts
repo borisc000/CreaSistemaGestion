@@ -45,12 +45,21 @@ export async function POST(req: NextRequest) {
       mode: "create"
     });
 
-    const created = await createEntity(context.tenantId, "personDocuments", {
-      ...parsed,
-      filePath,
-      expiryDate: parsed.expiryDate ?? null,
-      status: deriveDocumentStatus(parsed.expiryDate ?? null)
-    });
+    const created = await createEntity(
+      context.tenantId,
+      "personDocuments",
+      {
+        ...parsed,
+        filePath,
+        expiryDate: parsed.expiryDate ?? null,
+        status: deriveDocumentStatus(parsed.expiryDate ?? null)
+      },
+      {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      }
+    );
     return jsonOk({ data: created }, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -79,10 +88,20 @@ export async function PATCH(req: NextRequest) {
     });
 
     const mergedExpiryDate = patch.expiryDate ?? existing.expiryDate;
-    await patchEntity(context.tenantId, "personDocuments", id, {
-      ...patch,
-      status: deriveDocumentStatus(mergedExpiryDate ?? null)
-    });
+    await patchEntity(
+      context.tenantId,
+      "personDocuments",
+      id,
+      {
+        ...patch,
+        status: deriveDocumentStatus(mergedExpiryDate ?? null)
+      },
+      {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      }
+    );
     return jsonOk({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
