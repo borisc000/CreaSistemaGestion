@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Tender, TenderStatus } from "@/types/domain";
 
@@ -124,6 +124,13 @@ export function TendersPage() {
               </tr>
             </thead>
             <tbody>
+              {items.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={7}>
+                    <EmptyState message="Aun no hay licitaciones cargadas." />
+                  </td>
+                </tr>
+              ) : null}
               {items.map((item) => (
                 <tr key={item.id}>
                   <td>{item.title}</td>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ref, uploadBytes } from "firebase/storage";
-import { InlineError, KpiGrid, ModulePage, Panel, StatusBadge } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
 import { formatDate } from "@/lib/format";
@@ -272,6 +272,13 @@ export function HrPeoplePage() {
               </tr>
             </thead>
             <tbody>
+              {peopleApi.items.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={6}>
+                    <EmptyState message="Aun no hay personas cargadas en RRHH." />
+                  </td>
+                </tr>
+              ) : null}
               {peopleApi.items.map((person) => {
                 const contract = contractsApi.items.find((item) => item.id === person.contractId);
                 const docs = documentsApi.items.filter((item) => item.personId === person.id);
@@ -308,6 +315,13 @@ export function HrPeoplePage() {
               </tr>
             </thead>
             <tbody>
+              {documentsApi.items.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={5}>
+                    <EmptyState message="No hay documentos registrados todavia." />
+                  </td>
+                </tr>
+              ) : null}
               {documentsApi.items.map((document) => {
                 const person = peopleApi.items.find((item) => item.id === document.personId);
                 return (

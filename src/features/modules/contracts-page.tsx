@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Contract, ContractStatus, Tender } from "@/types/domain";
 
@@ -134,6 +134,13 @@ export function ContractsPage() {
               </tr>
             </thead>
             <tbody>
+              {contractsApi.items.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={8}>
+                    <EmptyState message="Aun no hay contratos registrados." />
+                  </td>
+                </tr>
+              ) : null}
               {contractsApi.items.map((item) => {
                 const marginPct = item.totalValue > 0 ? (((item.totalValue - item.costEstimate) / item.totalValue) * 100).toFixed(1) : "0.0";
                 return (

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Contract, FinanceEntry } from "@/types/domain";
 
@@ -174,6 +174,13 @@ export function FinancePage() {
               </tr>
             </thead>
             <tbody>
+              {financeApi.items.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={7}>
+                    <EmptyState message="Aun no existen movimientos financieros." />
+                  </td>
+                </tr>
+              ) : null}
               {financeApi.items.map((item) => {
                 const contract = contractsApi.items.find((candidate) => candidate.id === item.contractId);
                 return (

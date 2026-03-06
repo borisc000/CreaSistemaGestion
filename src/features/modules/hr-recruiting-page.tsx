@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
@@ -16,6 +16,12 @@ type RecruitingResponse = {
 
 const VACANCY_STATUSES: VacancyStatus[] = ["open", "paused", "closed"];
 const CANDIDATE_STAGES: CandidateStage[] = ["intake", "screening", "interview", "offer", "hired", "rejected"];
+
+function stageBadgeClass(stage: CandidateStage): string {
+  if (stage === "hired") return "badge badge-success";
+  if (stage === "rejected") return "badge badge-danger";
+  return "badge badge-warning";
+}
 
 export function HrRecruitingPage() {
   const api = useApiClient();
@@ -288,6 +294,13 @@ export function HrRecruitingPage() {
               </tr>
             </thead>
             <tbody>
+              {vacancies.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={6}>
+                    <EmptyState message="Aun no hay vacantes registradas." />
+                  </td>
+                </tr>
+              ) : null}
               {vacancies.map((vacancy) => {
                 const contract = contractsApi.items.find((item) => item.id === vacancy.contractId);
                 return (
@@ -325,6 +338,37 @@ export function HrRecruitingPage() {
         </div>
       </Panel>
 
+      <Panel title="Pipeline por etapa">
+        <div className="pipeline-board">
+          {CANDIDATE_STAGES.map((stage) => {
+            const stageCandidates = candidates.filter((candidate) => candidate.stage === stage);
+            return (
+              <section className="stage-column" key={stage}>
+                <header className="stage-head">
+                  <h3>{stage}</h3>
+                  <span className="stage-count">{stageCandidates.length}</span>
+                </header>
+                <div className="candidate-list">
+                  {stageCandidates.length === 0 ? <EmptyState message="Sin candidatos en esta etapa." /> : null}
+                  {stageCandidates.map((candidate) => {
+                    const vacancy = vacancies.find((item) => item.id === candidate.vacancyId);
+                    return (
+                      <article className="candidate-card" key={candidate.id}>
+                        <strong>{candidate.name}</strong>
+                        <p>{vacancy?.title || "Vacante no encontrada"}</p>
+                        <p>{candidate.source}</p>
+                        <p>{formatCurrency(candidate.salary)}</p>
+                        <span className={stageBadgeClass(candidate.stage)}>{candidate.stage}</span>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </Panel>
+
       <Panel title="Candidatos">
         <div className="table-wrap">
           <table>
@@ -339,6 +383,13 @@ export function HrRecruitingPage() {
               </tr>
             </thead>
             <tbody>
+              {candidates.length === 0 ? (
+                <tr className="table-empty-row">
+                  <td colSpan={6}>
+                    <EmptyState message="Aun no hay candidatos en el proceso." />
+                  </td>
+                </tr>
+              ) : null}
               {candidates.map((candidate) => {
                 const vacancy = vacancies.find((item) => item.id === candidate.vacancyId);
                 return (

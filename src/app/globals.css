@@ -33,6 +33,8 @@ body {
     radial-gradient(circle at 100% 0%, rgba(58, 191, 163, 0.18), transparent 36%),
     radial-gradient(circle at 100% 100%, rgba(241, 169, 96, 0.2), transparent 35%),
     var(--bg);
+  position: relative;
+  overflow-x: hidden;
 }
 
 h1,
@@ -62,6 +64,38 @@ h2,
 h3,
 p {
   margin: 0;
+}
+
+.bg-shape {
+  position: fixed;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(34px);
+  pointer-events: none;
+}
+
+.bg-shape-a {
+  width: 300px;
+  height: 300px;
+  background: rgba(57, 144, 214, 0.17);
+  top: -120px;
+  left: -90px;
+}
+
+.bg-shape-b {
+  width: 280px;
+  height: 280px;
+  background: rgba(26, 172, 140, 0.16);
+  right: -80px;
+  top: 20%;
+}
+
+.bg-shape-c {
+  width: 300px;
+  height: 300px;
+  background: rgba(246, 150, 63, 0.14);
+  bottom: -120px;
+  right: 15%;
 }
 
 .screen-center {
@@ -436,6 +470,11 @@ td select {
   padding-bottom: 4px;
 }
 
+.table-empty-row td {
+  border-bottom: 0;
+  padding: 12px 10px;
+}
+
 .status-badge {
   display: inline-block;
   border-radius: 999px;
@@ -455,6 +494,29 @@ td select {
 }
 
 .status-risk {
+  background: rgba(177, 38, 38, 0.18);
+  color: #8d1e1e;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.badge-success {
+  background: rgba(34, 125, 67, 0.18);
+  color: #1f6f3d;
+}
+
+.badge-warning {
+  background: rgba(176, 106, 16, 0.18);
+  color: #865108;
+}
+
+.badge-danger {
   background: rgba(177, 38, 38, 0.18);
   color: #8d1e1e;
 }
@@ -479,6 +541,23 @@ td select {
   gap: 8px;
 }
 
+.stage-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.stage-count {
+  border-radius: 999px;
+  background: #dce9f8;
+  color: #24425d;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  font-weight: 700;
+}
+
 .kanban-column h3 {
   margin: 0;
   text-transform: capitalize;
@@ -498,6 +577,54 @@ td select {
   margin: 0;
   color: var(--text-soft);
   font-size: 0.78rem;
+}
+
+.pipeline-board {
+  overflow-x: auto;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(255px, 1fr);
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.stage-column {
+  border: 1px solid #dce6f1;
+  border-radius: 14px;
+  background: #f8fbff;
+  min-height: 250px;
+  padding: 10px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.candidate-list {
+  display: grid;
+  gap: 8px;
+}
+
+.candidate-card {
+  border: 1px solid #d8e4f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+}
+
+.candidate-card p {
+  margin: 2px 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+.empty-state {
+  border: 1px dashed #c7d6e7;
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.62);
 }
 
 .overlay {

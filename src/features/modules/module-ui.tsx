@@ -48,3 +48,7 @@ export function InlineError({ message }: { message: string | null }) {
 export function StatusBadge({ tone, children }: { tone: "good" | "warn" | "risk"; children: ReactNode }) {
   return <span className={clsx("status-badge", `status-${tone}`)}>{children}</span>;
 }
+
+export function EmptyState({ message }: { message: string }) {
+  return <div className="empty-state">{message}</div>;
+}

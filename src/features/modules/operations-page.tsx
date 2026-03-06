@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel } from "@/features/modules/module-ui";
 import { formatDate } from "@/lib/format";
 import type { Contract, OperationTask, OperationTaskStatus } from "@/types/domain";
 
@@ -89,12 +89,16 @@ export function OperationsPage() {
       <Panel title="Tablero operativo">
         <InlineError message={operationsApi.error || contractsApi.error} />
         <div className="kanban-grid">
-          {STATUSES.map((status) => (
-            <section className="kanban-column" key={status}>
-              <h3>{status}</h3>
-              {operationsApi.items
-                .filter((task) => task.status === status)
-                .map((task) => {
+          {STATUSES.map((status) => {
+            const stageTasks = operationsApi.items.filter((task) => task.status === status);
+            return (
+              <section className="kanban-column" key={status}>
+                <header className="stage-head">
+                  <h3>{status}</h3>
+                  <span className="stage-count">{stageTasks.length}</span>
+                </header>
+                {stageTasks.length === 0 ? <EmptyState message="Sin tareas en esta etapa." /> : null}
+                {stageTasks.map((task) => {
                   const contract = contractsApi.items.find((item) => item.id === task.contractId);
                   return (
                     <article className="task-card" key={task.id}>
@@ -112,8 +116,9 @@ export function OperationsPage() {
                     </article>
                   );
                 })}
-            </section>
-          ))}
+              </section>
+            );
+          })}
         </div>
       </Panel>
     </ModulePage>

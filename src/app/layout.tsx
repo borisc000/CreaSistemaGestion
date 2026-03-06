@@ -24,6 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <body className={`${manrope.variable} ${sora.variable}`}>
+        <div className="bg-shape bg-shape-a" aria-hidden />
+        <div className="bg-shape bg-shape-b" aria-hidden />
+        <div className="bg-shape bg-shape-c" aria-hidden />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
