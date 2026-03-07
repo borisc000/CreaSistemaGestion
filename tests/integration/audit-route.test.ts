@@ -49,7 +49,7 @@ describe("/api/audit route", () => {
             actor: {
               uid: "admin-1",
               email: "admin@acme.com",
-              role: "admin",
+              role: "tenant_admin",
               source: "user"
             },
             before: { status: "draft" },
@@ -69,11 +69,11 @@ describe("/api/audit route", () => {
     vi.resetAllMocks();
   });
 
-  it("returns audit events for admin", async () => {
+  it("returns audit events for tenant admin", async () => {
     vi.mocked(getTenantContext).mockResolvedValue({
       tenantId: "tenant-a",
       uid: "caller-1",
-      role: "admin",
+      role: "tenant_admin",
       email: "owner@acme.com"
     });
 

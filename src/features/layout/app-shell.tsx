@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { NAV_ITEMS, ROLE_LABELS } from "@/features/layout/nav-config";
 import { resolveModuleKeyFromPath } from "@/modules/registry";
@@ -15,16 +15,52 @@ function isActive(pathname: string, href: string): boolean {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { role, logout, user } = useAuth();
+  const {
+    role,
+    logout,
+    user,
+    tenantId,
+    memberships,
+    switchTenant,
+    switchingTenant,
+    needsOnboarding
+  } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState(tenantId || "");
   const routeModule = resolveModuleKeyFromPath(pathname);
-  const hasAccess = routeModule ? canViewModule(role, routeModule) : true;
-  const items = NAV_ITEMS.filter((item) => {
-    if (!item.children) {
-      return item.moduleKey ? canViewModule(role, item.moduleKey) : true;
-    }
-    return item.children.some((child) => (child.moduleKey ? canViewModule(role, child.moduleKey) : true));
-  });
+  const hasTenantEnvironment = Boolean(tenantId);
+  const hasAccessByRole = routeModule ? canViewModule(role, routeModule) : true;
+  const hasAccess =
+    hasAccessByRole &&
+    (!routeModule || routeModule === "platform" || routeModule === "dashboard" || hasTenantEnvironment || needsOnboarding);
+
+  const items = needsOnboarding
+    ? []
+    : NAV_ITEMS.filter((item) => {
+        if (!item.children) {
+          if (role === "platform_admin" && !hasTenantEnvironment && item.moduleKey && item.moduleKey !== "platform") {
+            return false;
+          }
+          return item.moduleKey ? canViewModule(role, item.moduleKey) : true;
+        }
+
+        return item.children.some((child) => {
+          if (!child.moduleKey) return true;
+          if (role === "platform_admin" && !hasTenantEnvironment && child.moduleKey !== "platform") {
+            return false;
+          }
+          return canViewModule(role, child.moduleKey);
+        });
+      });
+
+  const currentMembership = useMemo(
+    () => memberships.find((membership) => membership.tenantId === tenantId) || null,
+    [memberships, tenantId]
+  );
+
+  useEffect(() => {
+    setSelectedTenantId(tenantId || memberships[0]?.tenantId || "");
+  }, [tenantId, memberships]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -63,7 +99,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <section className={`nav-group ${activeRoot ? "is-active" : ""}`} key={item.label}>
               <p className="nav-group-title">{item.label}</p>
               {item.children
-                .filter((child) => (child.moduleKey ? canViewModule(role, child.moduleKey) : true))
+                .filter((child) => {
+                  if (!child.moduleKey) return true;
+                  if (role === "platform_admin" && !hasTenantEnvironment && child.moduleKey !== "platform") {
+                    return false;
+                  }
+                  return canViewModule(role, child.moduleKey);
+                })
                 .map((child) => {
                   const activeChild = isActive(pathname, child.href);
                   return (
@@ -99,9 +141,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="topbar-meta">
             <strong>{ROLE_LABELS[role]}</strong>
             <span>{user?.email || "Sin email"}</span>
+            <span>{currentMembership ? `${currentMembership.tenantName} (${currentMembership.tenantSlug})` : tenantId || "Sin tenant"}</span>
           </div>
           <div className="topbar-actions">
-            {role === "admin" ? (
+            {memberships.length > 0 ? (
+              <div className="topbar-tenant-switch">
+                <label htmlFor="tenant-switch-select">Ambiente</label>
+                <select
+                  id="tenant-switch-select"
+                  value={selectedTenantId}
+                  onChange={(event) => setSelectedTenantId(event.target.value)}
+                  disabled={switchingTenant}
+                >
+                  {memberships.map((membership) => (
+                    <option key={membership.tenantId} value={membership.tenantId}>
+                      {membership.tenantName} ({membership.membershipRole})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={switchingTenant || !selectedTenantId || selectedTenantId === tenantId}
+                  onClick={() => {
+                    void switchTenant(selectedTenantId);
+                  }}
+                >
+                  {switchingTenant ? "Cambiando..." : "Cambiar"}
+                </button>
+              </div>
+            ) : null}
+            <Link className="btn-secondary" href="/onboarding">
+              Agregar empresa
+            </Link>
+            {role === "tenant_admin" || role === "platform_admin" ? (
               <Link className="pill" href="/auditoria">
                 Auditoria
               </Link>
@@ -120,7 +193,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ) : (
             <section className="panel">
               <h2>Sin acceso a este modulo</h2>
-              <p>Tu rol actual no tiene permisos para esta seccion.</p>
+              <p>
+                {role === "platform_admin" && !hasTenantEnvironment
+                  ? "Selecciona un ambiente de empresa o crea uno nuevo para abrir modulos operativos."
+                  : "Tu rol actual no tiene permisos para esta seccion."}
+              </p>
             </section>
           )}
         </main>

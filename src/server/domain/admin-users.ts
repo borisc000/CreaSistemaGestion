@@ -1,12 +1,9 @@
 import type { UserRecord } from "firebase-admin/auth";
-import { USER_ROLES, type UserRole } from "@/types/auth";
+import { parseTenantRole, type TenantRole } from "@/lib/auth/roles";
 import type { AdminUserSummary } from "@/types/domain";
 
-function parseRole(value: unknown): UserRole {
-  if (typeof value === "string" && USER_ROLES.includes(value as UserRole)) {
-    return value as UserRole;
-  }
-  return "viewer";
+function parseRole(value: unknown): TenantRole {
+  return parseTenantRole(value);
 }
 
 export function normalizeAdminUser(user: UserRecord): AdminUserSummary {
@@ -23,7 +20,7 @@ export function normalizeAdminUser(user: UserRecord): AdminUserSummary {
 
 type AdminUserFilters = {
   q?: string | null;
-  role?: UserRole | null;
+  role?: TenantRole | null;
   tenantId?: string | null;
 };
 

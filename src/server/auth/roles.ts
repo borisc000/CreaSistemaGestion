@@ -29,7 +29,8 @@ export function getRoleModules(role: UserRole, action: ModuleAccessAction = "rea
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, ModuleKey[]> = {
-  admin: getRoleModules("admin", "read"),
+  platform_admin: getRoleModules("platform_admin", "read"),
+  tenant_admin: getRoleModules("tenant_admin", "read"),
   tender_lead: getRoleModules("tender_lead", "read"),
   contract_manager: getRoleModules("contract_manager", "read"),
   finance: getRoleModules("finance", "read"),

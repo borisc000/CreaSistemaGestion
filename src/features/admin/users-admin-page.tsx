@@ -1,39 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { TENANT_MEMBER_ROLES, type TenantRole } from "@/lib/auth/roles";
 import { useApiClient } from "@/lib/api/use-api-client";
-import { USER_ROLES } from "@/types/auth";
-import type { AdminUserSummary, UserRole } from "@/types/domain";
+import type { AdminUserSummary, TenantInvitation } from "@/types/domain";
 import {
   EmptyState,
   FormDrawer,
   InlineError,
+  ModuleActionBar,
   ModulePage,
   Panel,
   SkeletonRows,
   Toast
 } from "@/features/modules/module-ui";
 
-type UsersResponse = {
-  data: AdminUserSummary[];
-  pageToken: string | null;
-};
+type UsersResponse = { data: AdminUserSummary[] };
+type InvitationsResponse = { data: TenantInvitation[] };
 
-type UpdateClaimsResponse = {
+type UpdateUserResponse = {
   ok: boolean;
   data: {
     uid: string;
-    role: UserRole;
+    role: TenantRole;
     tenantId: string;
   };
 };
 
-type PendingChange = {
+type CreateInvitationResponse = {
+  data: TenantInvitation;
+  inviteUrl: string;
+  sent: boolean;
+};
+
+type PendingUserChange = {
   uid: string;
   email: string | null;
-  role: UserRole;
-  tenantId: string;
+  role: TenantRole;
 };
 
 function toQueryParams(params: Record<string, string | null | undefined>) {
@@ -48,60 +51,65 @@ function toQueryParams(params: Record<string, string | null | undefined>) {
 export function UsersAdminPage() {
   const api = useApiClient();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
+  const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" | "info" } | null>(null);
 
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
-  const [tenantFilter, setTenantFilter] = useState(DEFAULT_TENANT_ID);
+  const [roleFilter, setRoleFilter] = useState<"all" | TenantRole>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "invited" | "revoked">("all");
+  const [drafts, setDrafts] = useState<Record<string, TenantRole>>({});
+  const [pendingChange, setPendingChange] = useState<PendingUserChange | null>(null);
 
-  const [pageToken, setPageToken] = useState<string | null>(null);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [pageHistory, setPageHistory] = useState<string[]>([]);
+  const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<TenantRole>("viewer");
 
-  const [drafts, setDrafts] = useState<Record<string, { role: UserRole; tenantId: string }>>({});
-  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    setError(null);
+    try {
+      const queryString = toQueryParams({
+        q: query.trim() || null,
+        role: roleFilter === "all" ? null : roleFilter,
+        status: statusFilter === "all" ? null : statusFilter
+      });
+      const response = await api.get<UsersResponse>(`/api/tenant/users?${queryString}`);
+      setUsers(response.data);
+      setDrafts(
+        Object.fromEntries(
+          response.data.map((user) => [user.uid, user.role])
+        ) as Record<string, TenantRole>
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cargar usuarios del tenant.");
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [api, query, roleFilter, statusFilter]);
 
-  const hasPreviousPage = pageHistory.length > 0;
-
-  const fetchUsers = useCallback(
-    async (token?: string | null) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const queryString = toQueryParams({
-          q: query.trim() || null,
-          role: roleFilter === "all" ? null : roleFilter,
-          tenantId: tenantFilter || DEFAULT_TENANT_ID,
-          limit: "25",
-          pageToken: token || null
-        });
-
-        const response = await api.get<UsersResponse>(`/api/admin/users?${queryString}`);
-        setUsers(response.data);
-        setNextPageToken(response.pageToken);
-        setDrafts(
-          Object.fromEntries(
-            response.data.map((user) => [
-              user.uid,
-              { role: user.role, tenantId: user.tenantId || tenantFilter || DEFAULT_TENANT_ID }
-            ])
-          )
-        );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "No se pudo cargar usuarios.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [api, query, roleFilter, tenantFilter]
-  );
+  const loadInvitations = useCallback(async () => {
+    setLoadingInvitations(true);
+    try {
+      const response = await api.get<InvitationsResponse>("/api/tenant/invitations");
+      setInvitations(response.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cargar invitaciones.");
+    } finally {
+      setLoadingInvitations(false);
+    }
+  }, [api]);
 
   useEffect(() => {
-    void fetchUsers(pageToken);
-  }, [fetchUsers, pageToken]);
+    void loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    void loadInvitations();
+  }, [loadInvitations]);
 
   const selectedUser = useMemo(
     () => (pendingChange ? users.find((user) => user.uid === pendingChange.uid) || null : null),
@@ -110,25 +118,32 @@ export function UsersAdminPage() {
 
   return (
     <ModulePage
-      title="Administracion de usuarios y roles"
-      description="Asignacion de rol y tenant sobre usuarios existentes en Firebase Auth."
+      title="Administracion de usuarios del ambiente"
+      description="Gestiona roles de tu empresa e invita nuevos usuarios al tenant."
     >
       <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
-      <Panel title="Filtros y busqueda">
+
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setInviteDrawerOpen(true)}>
+          Invitar usuario
+        </button>
+      </ModuleActionBar>
+
+      <Panel title="Filtros">
         <div className="toolbar">
           <label>
-            Buscar (email/nombre/uid)
+            Buscar (email/uid)
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="ej: usuario@empresa.com"
+              placeholder="usuario@empresa.com"
             />
           </label>
           <label>
             Rol
-            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | UserRole)}>
+            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | TenantRole)}>
               <option value="all">Todos</option>
-              {USER_ROLES.map((role) => (
+              {TENANT_MEMBER_ROLES.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
@@ -136,119 +151,64 @@ export function UsersAdminPage() {
             </select>
           </label>
           <label>
-            Tenant
-            <input value={tenantFilter} onChange={(event) => setTenantFilter(event.target.value)} />
+            Estado
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
+              <option value="all">Todos</option>
+              <option value="active">active</option>
+              <option value="invited">invited</option>
+              <option value="revoked">revoked</option>
+            </select>
           </label>
-          <button
-            className="btn-primary"
-            type="button"
-            onClick={() => {
-              setPageToken(null);
-              setPageHistory([]);
-              void fetchUsers(null);
-            }}
-          >
-            Aplicar filtros
+          <button className="btn-secondary" type="button" onClick={() => void loadUsers()}>
+            Aplicar
           </button>
         </div>
         <InlineError message={error} />
       </Panel>
 
-      <Panel
-        title="Usuarios"
-        right={
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className="btn-secondary"
-              type="button"
-              disabled={!hasPreviousPage || loading}
-              onClick={() => {
-                const previous = pageHistory[pageHistory.length - 1];
-                setPageHistory((current) => current.slice(0, -1));
-                setPageToken(previous || null);
-              }}
-            >
-              Anterior
-            </button>
-            <button
-              className="btn-secondary"
-              type="button"
-              disabled={!nextPageToken || loading}
-              onClick={() => {
-                setPageHistory((current) => [...current, pageToken || ""]);
-                setPageToken(nextPageToken);
-              }}
-            >
-              Siguiente
-            </button>
-          </div>
-        }
-      >
-        {loading ? <SkeletonRows rows={6} /> : null}
-        {!loading && users.length === 0 ? <EmptyState message="No se encontraron usuarios con esos filtros." /> : null}
-        {!loading && users.length > 0 ? (
+      <Panel title="Usuarios del tenant">
+        {loadingUsers ? <SkeletonRows rows={6} /> : null}
+        {!loadingUsers && users.length === 0 ? <EmptyState message="No hay usuarios para este tenant." /> : null}
+        {!loadingUsers && users.length > 0 ? (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Email</th>
-                  <th>Nombre</th>
                   <th>UID</th>
                   <th>Ultimo acceso</th>
-                  <th>Rol</th>
-                  <th>Tenant</th>
                   <th>Estado</th>
+                  <th>Rol</th>
                   <th>Accion</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => {
-                  const draft = drafts[user.uid] || {
-                    role: user.role,
-                    tenantId: user.tenantId || tenantFilter || DEFAULT_TENANT_ID
-                  };
-                  const changed = draft.role !== user.role || draft.tenantId !== (user.tenantId || DEFAULT_TENANT_ID);
+                  const draftRole = drafts[user.uid] || user.role;
+                  const changed = draftRole !== user.role;
                   return (
                     <tr key={user.uid}>
                       <td>{user.email || "Sin email"}</td>
-                      <td>{user.displayName || "-"}</td>
                       <td>{user.uid}</td>
                       <td>{user.lastSignInTime || "Sin acceso"}</td>
+                      <td>{user.status || (user.disabled ? "disabled" : "active")}</td>
                       <td>
                         <select
-                          value={draft.role}
+                          value={draftRole}
                           onChange={(event) =>
                             setDrafts((current) => ({
                               ...current,
-                              [user.uid]: {
-                                role: event.target.value as UserRole,
-                                tenantId: draft.tenantId
-                              }
+                              [user.uid]: event.target.value as TenantRole
                             }))
                           }
                         >
-                          {USER_ROLES.map((role) => (
+                          {TENANT_MEMBER_ROLES.map((role) => (
                             <option key={role} value={role}>
                               {role}
                             </option>
                           ))}
                         </select>
                       </td>
-                      <td>
-                        <input
-                          value={draft.tenantId}
-                          onChange={(event) =>
-                            setDrafts((current) => ({
-                              ...current,
-                              [user.uid]: {
-                                role: draft.role,
-                                tenantId: event.target.value
-                              }
-                            }))
-                          }
-                        />
-                      </td>
-                      <td>{user.disabled ? "Deshabilitado" : "Activo"}</td>
                       <td>
                         <button
                           className="btn-primary"
@@ -258,8 +218,7 @@ export function UsersAdminPage() {
                             setPendingChange({
                               uid: user.uid,
                               email: user.email,
-                              role: draft.role,
-                              tenantId: draft.tenantId || DEFAULT_TENANT_ID
+                              role: draftRole
                             })
                           }
                         >
@@ -275,52 +234,223 @@ export function UsersAdminPage() {
         ) : null}
       </Panel>
 
+      <Panel title="Invitaciones">
+        {loadingInvitations ? <SkeletonRows rows={4} /> : null}
+        {!loadingInvitations && invitations.length === 0 ? (
+          <EmptyState message="No hay invitaciones registradas." />
+        ) : null}
+        {!loadingInvitations && invitations.length > 0 ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th>Expira</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invitations.map((invitation) => (
+                  <tr key={invitation.id}>
+                    <td>{invitation.email}</td>
+                    <td>{invitation.role}</td>
+                    <td>{invitation.status}</td>
+                    <td>{invitation.expiresAt}</td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="btn-secondary"
+                        type="button"
+                        onClick={() => {
+                          setSaving(true);
+                          void api
+                            .patch<{ ok: boolean; inviteUrl: string; sent: boolean }>("/api/tenant/invitations", {
+                              id: invitation.id,
+                              action: "resend"
+                            })
+                            .then((response) => {
+                              if (response.inviteUrl) {
+                                void navigator.clipboard?.writeText(response.inviteUrl);
+                              }
+                              setToast({
+                                message: response.sent
+                                  ? "Invitacion reenviada y link copiado."
+                                  : "Invitacion renovada. Link copiado.",
+                                tone: "success"
+                              });
+                              return loadInvitations();
+                            })
+                            .catch((err) => {
+                              setToast({
+                                message: err instanceof Error ? err.message : "No se pudo reenviar invitacion.",
+                                tone: "error"
+                              });
+                            })
+                            .finally(() => setSaving(false));
+                        }}
+                        disabled={saving}
+                      >
+                        Reenviar
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        type="button"
+                        onClick={() => {
+                          setSaving(true);
+                          void api
+                            .patch<{ ok: boolean }>("/api/tenant/invitations", {
+                              id: invitation.id,
+                              action: "revoke"
+                            })
+                            .then(() => {
+                              setToast({ message: "Invitacion revocada.", tone: "info" });
+                              return loadInvitations();
+                            })
+                            .catch((err) => {
+                              setToast({
+                                message: err instanceof Error ? err.message : "No se pudo revocar invitacion.",
+                                tone: "error"
+                              });
+                            })
+                            .finally(() => setSaving(false));
+                        }}
+                        disabled={saving || invitation.status !== "pending"}
+                      >
+                        Revocar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </Panel>
+
       <FormDrawer
         isOpen={Boolean(pendingChange)}
-        title="Confirmar actualizacion de permisos"
-        description="Este cambio modificara role y tenant del usuario seleccionado."
+        title="Confirmar cambio de rol"
+        description="Se actualizara el rol de este usuario dentro de tu tenant."
         onClose={() => setPendingChange(null)}
       >
         {pendingChange ? (
-        <>
-          <p>
-            Se actualizara el usuario <strong>{pendingChange.email || pendingChange.uid}</strong> a rol{" "}
-            <strong>{pendingChange.role}</strong> en tenant <strong>{pendingChange.tenantId}</strong>.
-          </p>
-          <div className="toolbar">
-            <button className="btn-secondary" type="button" onClick={() => setPendingChange(null)} disabled={saving}>
+          <>
+            <p>
+              Usuario <strong>{pendingChange.email || pendingChange.uid}</strong> pasara a rol{" "}
+              <strong>{pendingChange.role}</strong>.
+            </p>
+            <div className="toolbar">
+              <button className="btn-secondary" type="button" onClick={() => setPendingChange(null)} disabled={saving}>
+                Cancelar
+              </button>
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  if (!pendingChange) return;
+                  setSaving(true);
+                  void api
+                    .patch<UpdateUserResponse>("/api/tenant/users", {
+                      uid: pendingChange.uid,
+                      role: pendingChange.role
+                    })
+                    .then(() => {
+                      setToast({ message: "Rol actualizado.", tone: "success" });
+                      setPendingChange(null);
+                      return loadUsers();
+                    })
+                    .catch((err) => {
+                      setToast({
+                        message: err instanceof Error ? err.message : "No se pudo actualizar rol.",
+                        tone: "error"
+                      });
+                    })
+                    .finally(() => setSaving(false));
+                }}
+              >
+                Confirmar
+              </button>
+            </div>
+            {selectedUser?.role !== pendingChange.role ? (
+              <p className="inline-error">El usuario debera refrescar token para tomar permisos nuevos.</p>
+            ) : null}
+          </>
+        ) : null}
+      </FormDrawer>
+
+      <FormDrawer
+        isOpen={inviteDrawerOpen}
+        title="Invitar usuario al tenant"
+        description="Se enviara un enlace de acceso por email y se copiara el link en pantalla."
+        onClose={() => setInviteDrawerOpen(false)}
+      >
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSaving(true);
+            void api
+              .post<CreateInvitationResponse>("/api/tenant/invitations", {
+                email: inviteEmail,
+                role: inviteRole
+              })
+              .then((response) => {
+                if (response.inviteUrl) {
+                  void navigator.clipboard?.writeText(response.inviteUrl);
+                }
+                setToast({
+                  message: response.sent
+                    ? "Invitacion enviada y link copiado."
+                    : "Invitacion creada. Link copiado para compartir.",
+                  tone: "success"
+                });
+                setInviteDrawerOpen(false);
+                setInviteEmail("");
+                setInviteRole("viewer");
+                return loadInvitations();
+              })
+              .catch((err) => {
+                setToast({
+                  message: err instanceof Error ? err.message : "No se pudo crear invitacion.",
+                  tone: "error"
+                });
+              })
+              .finally(() => setSaving(false));
+          }}
+        >
+          <label>
+            Email
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Rol
+            <select
+              value={inviteRole}
+              onChange={(event) => setInviteRole(event.target.value as TenantRole)}
+            >
+              {TENANT_MEMBER_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-actions">
+            <button className="btn-secondary" type="button" onClick={() => setInviteDrawerOpen(false)} disabled={saving}>
               Cancelar
             </button>
-            <button
-              className="btn-primary"
-              type="button"
-              disabled={saving}
-              onClick={() => {
-                if (!pendingChange) return;
-                setSaving(true);
-                setError(null);
-                void api
-                  .patch<UpdateClaimsResponse>("/api/admin/users", pendingChange)
-                  .then(() => {
-                    setToast({ message: "Claims actualizados correctamente.", tone: "success" });
-                    setPendingChange(null);
-                    return fetchUsers(pageToken);
-                  })
-                  .catch((err) => {
-                    setError(err instanceof Error ? err.message : "No se pudo actualizar claims.");
-                    setToast({ message: "No se pudo actualizar claims.", tone: "error" });
-                  })
-                  .finally(() => setSaving(false));
-              }}
-            >
-              Confirmar
+            <button className="btn-primary" type="submit" disabled={saving}>
+              Crear invitacion
             </button>
           </div>
-          {selectedUser?.role !== pendingChange.role || selectedUser?.tenantId !== pendingChange.tenantId ? (
-            <p className="inline-error">El cambio impactara permisos al refrescar el token del usuario afectado.</p>
-          ) : null}
-        </>
-        ) : null}
+        </form>
       </FormDrawer>
     </ModulePage>
   );

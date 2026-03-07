@@ -7,7 +7,27 @@ service firebase.storage {
     }
 
     function role() {
-      return signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer";
+      return signedIn() && request.auth.token.tenantRole is string
+        ? request.auth.token.tenantRole
+        : (
+            signedIn() && request.auth.token.role == "admin"
+              ? "tenant_admin"
+              : (signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer")
+          );
+    }
+
+    function platformRole() {
+      return signedIn() && request.auth.token.platformRole is string
+        ? request.auth.token.platformRole
+        : (
+            signedIn() && request.auth.token.role == "platform_admin"
+              ? "platform_admin"
+              : null
+          );
+    }
+
+    function hasRole(allowed) {
+      return signedIn() && ((role() in allowed) || (platformRole() in allowed));
     }
 
     function tenant() {
@@ -15,8 +35,8 @@ service firebase.storage {
     }
 
     match /tenants/{tenantId}/people/{personId}/documents/{fileName} {
-      allow read: if signedIn() && tenantId == tenant() && role() in ["admin", "hr", "viewer"];
-      allow write: if signedIn() && tenantId == tenant() && role() in ["admin", "hr"];
+      allow read: if signedIn() && tenantId == tenant() && hasRole(["tenant_admin", "hr", "viewer", "platform_admin"]);
+      allow write: if signedIn() && tenantId == tenant() && hasRole(["tenant_admin", "hr", "platform_admin"]);
     }
   }
 }

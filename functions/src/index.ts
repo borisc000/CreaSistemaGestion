@@ -16,7 +16,7 @@ setGlobalOptions({
 const db = getFirestore();
 const auth = getAuth();
 
-const USER_ROLES = ["admin", "tender_lead", "contract_manager", "finance", "hr", "viewer"] as const;
+const USER_ROLES = ["platform_admin", "tenant_admin", "tender_lead", "contract_manager", "finance", "hr", "viewer"] as const;
 type UserRole = (typeof USER_ROLES)[number];
 
 function deriveDocumentStatus(expiryDate: string | null | undefined, now = new Date()) {
@@ -263,17 +263,33 @@ export const assignUserRole = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Authentication is required.");
   }
 
-  const callerRole = request.auth.token.role as UserRole | undefined;
-  if (callerRole !== "admin") {
-    throw new HttpsError("permission-denied", "Only admin role can assign claims.");
+  const callerRole =
+    ((request.auth.token.tenantRole as UserRole | undefined) ||
+      (request.auth.token.role as UserRole | undefined) ||
+      "viewer");
+  const callerPlatformRole = request.auth.token.platformRole as UserRole | undefined;
+  const isPlatformAdmin = callerPlatformRole === "platform_admin" || callerRole === "platform_admin";
+  const isTenantAdmin = callerRole === "tenant_admin";
+  if (!isPlatformAdmin && !isTenantAdmin) {
+    throw new HttpsError("permission-denied", "Only tenant_admin or platform_admin can assign claims.");
   }
 
   const uid = typeof request.data?.uid === "string" ? request.data.uid : "";
   const role = request.data?.role as UserRole;
+  if (role === "platform_admin" && !isPlatformAdmin) {
+    throw new HttpsError("permission-denied", "Only platform_admin can assign platform role.");
+  }
   const tenantId =
     typeof request.data?.tenantId === "string"
       ? request.data.tenantId
       : (request.auth.token.tenantId as string | undefined) || "crea-default";
+
+  if (!isPlatformAdmin) {
+    const callerTenantId = request.auth.token.tenantId as string | undefined;
+    if (!callerTenantId || tenantId !== callerTenantId) {
+      throw new HttpsError("permission-denied", "Tenant admin can only assign users inside their tenant.");
+    }
+  }
 
   if (!uid) {
     throw new HttpsError("invalid-argument", "uid is required.");
@@ -283,9 +299,14 @@ export const assignUserRole = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Invalid role.");
   }
 
+  const targetUser = await auth.getUser(uid);
+  const existingClaims = targetUser.customClaims || {};
   await auth.setCustomUserClaims(uid, {
+    ...existingClaims,
     role,
-    tenantId
+    tenantRole: role === "platform_admin" ? null : role,
+    tenantId,
+    platformRole: role === "platform_admin" ? "platform_admin" : null
   });
 
   return {

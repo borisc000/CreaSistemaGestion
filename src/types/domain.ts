@@ -13,6 +13,7 @@ import type { UserRole as AuthUserRole } from "@/types/auth";
 import type { ModuleKey as RegistryModuleKey } from "@/modules/registry";
 
 export type UserRole = AuthUserRole;
+export type TenantScopedRole = Exclude<UserRole, "platform_admin">;
 export type ModuleKey = RegistryModuleKey;
 
 export type TenderStatus = (typeof TENDER_STATUSES)[number];
@@ -30,6 +31,9 @@ export interface TenantContext {
   uid: string;
   role: UserRole;
   email: string | null;
+  tenantRole?: UserRole | null;
+  platformRole?: "platform_admin" | null;
+  host?: string | null;
 }
 
 export interface BaseEntity {
@@ -189,8 +193,84 @@ export interface AdminUserSummary {
   displayName: string | null;
   disabled: boolean;
   lastSignInTime: string | null;
-  role: UserRole;
+  role: TenantScopedRole;
   tenantId: string | null;
+  status?: TenantUserStatus;
+}
+
+export type TenantStatus = "active" | "suspended";
+export type TenantUserStatus = "active" | "invited" | "revoked";
+export type TenantInvitationStatus = "pending" | "accepted" | "revoked" | "expired";
+export type TenantDomainType = "wildcard" | "custom";
+export type BillingPlanCode = "starter" | "pro" | "enterprise";
+
+export interface TenantPlan {
+  code: BillingPlanCode;
+  status: "active" | "inactive";
+  limits: {
+    maxUsers: number;
+    enabledModules: ModuleKey[];
+  };
+}
+
+export interface TenantRecord {
+  id: string;
+  name: string;
+  slug: string;
+  status: TenantStatus;
+  plan: TenantPlan;
+  ownerUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantUserMembership {
+  id: string;
+  tenantId: string;
+  uid: string;
+  email: string;
+  role: TenantScopedRole;
+  status: TenantUserStatus;
+  invitedByUid: string | null;
+  acceptedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantInvitation {
+  id: string;
+  tenantId: string;
+  email: string;
+  role: TenantScopedRole;
+  status: TenantInvitationStatus;
+  expiresAt: string;
+  invitedByUid: string;
+  tokenHash: string;
+  createdAt: string;
+  updatedAt: string;
+  acceptedByUid: string | null;
+  acceptedAt: string | null;
+}
+
+export interface TenantDomain {
+  id: string;
+  tenantId: string;
+  host: string;
+  type: TenantDomainType;
+  verified: boolean;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserTenantMembershipView {
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  tenantStatus: TenantStatus;
+  membershipRole: TenantScopedRole;
+  membershipStatus: TenantUserStatus;
+  preferredHost: string | null;
 }
 
 export interface AuditActorInfo {

@@ -39,7 +39,7 @@ describe("module registry", () => {
         label: "Shadow",
         href: "/dashboard-shadow",
         order: 999,
-        visibleForRoles: ["admin"]
+        visibleForRoles: ["tenant_admin"]
       }
     } as unknown as RegisteredModule;
 

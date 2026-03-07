@@ -11,11 +11,11 @@ type CollectionRolePolicy = {
 
 const EXTRA_COLLECTION_POLICIES: Record<TenantCollectionKey, { read: UserRole[]; write: UserRole[] }> = {
   alerts: {
-    read: ["admin", "contract_manager", "finance", "hr"],
+    read: ["platform_admin", "tenant_admin", "contract_manager", "finance", "hr"],
     write: []
   },
   auditLogs: {
-    read: ["admin"],
+    read: ["platform_admin", "tenant_admin"],
     write: []
   },
   tenders: {
@@ -146,7 +146,23 @@ service cloud.firestore {
     }
 
     function role() {
-      return signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer";
+      return signedIn() && request.auth.token.tenantRole is string
+        ? request.auth.token.tenantRole
+        : (
+            signedIn() && request.auth.token.role == "admin"
+              ? "tenant_admin"
+              : (signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer")
+          );
+    }
+
+    function platformRole() {
+      return signedIn() && request.auth.token.platformRole is string
+        ? request.auth.token.platformRole
+        : (
+            signedIn() && request.auth.token.role == "platform_admin"
+              ? "platform_admin"
+              : null
+          );
     }
 
     function tenant() {
@@ -157,8 +173,12 @@ service cloud.firestore {
       return signedIn() && tenantId == tenant();
     }
 
+    function isPlatformAdmin() {
+      return platformRole() == "platform_admin";
+    }
+
     function hasRole(allowed) {
-      return signedIn() && role() in allowed;
+      return signedIn() && ((role() in allowed) || (platformRole() in allowed));
     }
 
     function canReadCollection(collection) {
@@ -174,8 +194,25 @@ ${writeBlock}
     }
 
     match /tenants/{tenantId}/{collection}/{docId} {
-      allow read: if sameTenant(tenantId) && canReadCollection(collection);
-      allow create, update, delete: if sameTenant(tenantId) && canWriteCollection(collection);
+      allow read: if (sameTenant(tenantId) || isPlatformAdmin()) && canReadCollection(collection);
+      allow create, update, delete: if (sameTenant(tenantId) || isPlatformAdmin()) && canWriteCollection(collection);
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if sameTenant(tenantId) || isPlatformAdmin();
+      allow create, update, delete: if isPlatformAdmin();
+    }
+
+    match /tenantUsers/{docId} {
+      allow read, create, update, delete: if isPlatformAdmin();
+    }
+
+    match /tenantInvitations/{docId} {
+      allow read, create, update, delete: if isPlatformAdmin();
+    }
+
+    match /tenantDomains/{docId} {
+      allow read, create, update, delete: if isPlatformAdmin();
     }
   }
 }

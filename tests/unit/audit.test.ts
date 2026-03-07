@@ -23,13 +23,13 @@ describe("audit helpers", () => {
     const actor = resolveAuditActor(null, {
       updatedByUid: "u-1",
       updatedByEmail: "admin@acme.com",
-      updatedByRole: "admin"
+      updatedByRole: "tenant_admin"
     });
 
     expect(actor).toEqual({
       uid: "u-1",
       email: "admin@acme.com",
-      role: "admin",
+      role: "tenant_admin",
       source: "user"
     });
   });

@@ -5,35 +5,81 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 
 export function LoginCard() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, role, needsOnboarding, signInWithGoogle, signInWithEmailPassword, registerWithEmailPassword } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/dashboard");
+      if (role === "platform_admin") {
+        router.replace("/platform");
+        return;
+      }
+      router.replace(needsOnboarding ? "/onboarding" : "/dashboard");
     }
-  }, [loading, user, router]);
+  }, [loading, user, role, needsOnboarding, router]);
+
+  async function runAuth(action: "login" | "register") {
+    setBusy(true);
+    setError(null);
+    try {
+      if (action === "login") {
+        await signInWithEmailPassword(email.trim(), password);
+      } else {
+        await registerWithEmailPassword(email.trim(), password);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo autenticar.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <section className="login-card">
       <h1>Sistema Gestion Contratistas</h1>
-      <p>Accede con Google para trabajar con Auth + Firestore + Storage.</p>
+      <p>Accede con Google o email/password para operar tu ambiente SaaS.</p>
       <button
         className="btn-primary"
         onClick={() => {
-          void signInWithGoogle().catch((err) => {
-            setError(err instanceof Error ? err.message : "No se pudo iniciar sesion.");
-          });
+          setBusy(true);
+          setError(null);
+          void signInWithGoogle()
+            .catch((err) => {
+              setError(err instanceof Error ? err.message : "No se pudo iniciar sesion.");
+            })
+            .finally(() => setBusy(false));
         }}
         type="button"
+        disabled={busy}
       >
         Ingresar con Google
       </button>
+
+      <div className="form-grid">
+        <label>
+          Email
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" />
+        </label>
+        <label>
+          Contrasena
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="********" />
+        </label>
+        <div className="form-actions">
+          <button className="btn-secondary" type="button" disabled={busy || !email || !password} onClick={() => void runAuth("login")}>
+            Ingresar email
+          </button>
+          <button className="btn-secondary" type="button" disabled={busy || !email || !password} onClick={() => void runAuth("register")}>
+            Crear cuenta
+          </button>
+        </div>
+      </div>
+
       {error ? <small className="inline-error">{error}</small> : null}
-      <small>
-        El rol se toma desde custom claims. Si no tienes claims, quedaras como viewer hasta bootstrap de admin.
-      </small>
+      <small>Si no tienes empresa asignada, al entrar se abrira el onboarding para crear tu ambiente.</small>
     </section>
   );
 }

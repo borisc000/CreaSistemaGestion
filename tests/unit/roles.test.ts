@@ -10,15 +10,20 @@ describe("hasModuleAccess", () => {
     expect(hasModuleAccess("tender_lead", "hr_people")).toBe(false);
   });
 
-  it("allows all modules for admin", () => {
-    expect(hasModuleAccess("admin", "operations")).toBe(true);
-    expect(hasModuleAccess("admin", "hr_recruiting")).toBe(true);
-    expect(hasModuleAccess("admin", "admin_users")).toBe(true);
-    expect(hasModuleAccess("admin", "audit")).toBe(true);
+  it("allows core modules for tenant admin", () => {
+    expect(hasModuleAccess("tenant_admin", "operations")).toBe(true);
+    expect(hasModuleAccess("tenant_admin", "hr_recruiting")).toBe(true);
+    expect(hasModuleAccess("tenant_admin", "admin_users")).toBe(true);
+    expect(hasModuleAccess("tenant_admin", "audit")).toBe(true);
   });
 
   it("denies admin modules for non-admin roles", () => {
     expect(hasModuleAccess("finance", "admin_users")).toBe(false);
     expect(hasModuleAccess("viewer", "audit")).toBe(false);
+  });
+
+  it("allows platform module only for platform admin", () => {
+    expect(hasModuleAccess("platform_admin", "platform")).toBe(true);
+    expect(hasModuleAccess("tenant_admin", "platform")).toBe(false);
   });
 });

@@ -7,7 +7,23 @@ service cloud.firestore {
     }
 
     function role() {
-      return signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer";
+      return signedIn() && request.auth.token.tenantRole is string
+        ? request.auth.token.tenantRole
+        : (
+            signedIn() && request.auth.token.role == "admin"
+              ? "tenant_admin"
+              : (signedIn() && request.auth.token.role is string ? request.auth.token.role : "viewer")
+          );
+    }
+
+    function platformRole() {
+      return signedIn() && request.auth.token.platformRole is string
+        ? request.auth.token.platformRole
+        : (
+            signedIn() && request.auth.token.role == "platform_admin"
+              ? "platform_admin"
+              : null
+          );
     }
 
     function tenant() {
@@ -18,47 +34,68 @@ service cloud.firestore {
       return signedIn() && tenantId == tenant();
     }
 
+    function isPlatformAdmin() {
+      return platformRole() == "platform_admin";
+    }
+
     function hasRole(allowed) {
-      return signedIn() && role() in allowed;
+      return signedIn() && ((role() in allowed) || (platformRole() in allowed));
     }
 
     function canReadCollection(collection) {
       return (
-        (collection == "accreditationTemplates" && hasRole(["admin", "hr"])) ||
-        (collection == "alerts" && hasRole(["admin", "contract_manager", "finance", "hr"])) ||
-        (collection == "auditLogs" && hasRole(["admin"])) ||
-        (collection == "candidates" && hasRole(["admin", "hr"])) ||
-        (collection == "contracts" && hasRole(["admin", "contract_manager", "finance", "hr", "tender_lead"])) ||
-        (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
-        (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
-        (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
-        (collection == "personContractAssignments" && hasRole(["admin", "hr"])) ||
-        (collection == "personDocuments" && hasRole(["admin", "hr"])) ||
-        (collection == "tenders" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
-        (collection == "vacancies" && hasRole(["admin", "hr"]))
+        (collection == "accreditationTemplates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "alerts" && hasRole(["contract_manager", "finance", "hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "auditLogs" && hasRole(["platform_admin", "tenant_admin"])) ||
+        (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "contracts" && hasRole(["contract_manager", "finance", "hr", "platform_admin", "tenant_admin", "tender_lead"])) ||
+        (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin"])) ||
+        (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin"])) ||
+        (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "personContractAssignments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "personDocuments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "tenders" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tender_lead"])) ||
+        (collection == "vacancies" && hasRole(["hr", "platform_admin", "tenant_admin"]))
       );
     }
 
     function canWriteCollection(collection) {
       return (
-        (collection == "accreditationTemplates" && hasRole(["admin", "hr"])) ||
+        (collection == "accreditationTemplates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
         (collection == "alerts" && hasRole([])) ||
         (collection == "auditLogs" && hasRole([])) ||
-        (collection == "candidates" && hasRole(["admin", "hr"])) ||
-        (collection == "contracts" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
-        (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
-        (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
-        (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
-        (collection == "personContractAssignments" && hasRole(["admin", "hr"])) ||
-        (collection == "personDocuments" && hasRole(["admin", "hr"])) ||
-        (collection == "tenders" && hasRole(["admin", "tender_lead"])) ||
-        (collection == "vacancies" && hasRole(["admin", "hr"]))
+        (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "contracts" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tender_lead"])) ||
+        (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin"])) ||
+        (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin"])) ||
+        (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "personContractAssignments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "personDocuments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "tenders" && hasRole(["platform_admin", "tenant_admin", "tender_lead"])) ||
+        (collection == "vacancies" && hasRole(["hr", "platform_admin", "tenant_admin"]))
       );
     }
 
     match /tenants/{tenantId}/{collection}/{docId} {
-      allow read: if sameTenant(tenantId) && canReadCollection(collection);
-      allow create, update, delete: if sameTenant(tenantId) && canWriteCollection(collection);
+      allow read: if (sameTenant(tenantId) || isPlatformAdmin()) && canReadCollection(collection);
+      allow create, update, delete: if (sameTenant(tenantId) || isPlatformAdmin()) && canWriteCollection(collection);
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if sameTenant(tenantId) || isPlatformAdmin();
+      allow create, update, delete: if isPlatformAdmin();
+    }
+
+    match /tenantUsers/{docId} {
+      allow read, create, update, delete: if isPlatformAdmin();
+    }
+
+    match /tenantInvitations/{docId} {
+      allow read, create, update, delete: if isPlatformAdmin();
+    }
+
+    match /tenantDomains/{docId} {
+      allow read, create, update, delete: if isPlatformAdmin();
     }
   }
 }
