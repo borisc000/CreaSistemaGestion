@@ -1,4 +1,4 @@
-# Crea Sistema Gestion (MVP v2)
+# Crea Sistema Gestion (MVP v2.1 SaaS)
 
 MVP integral para PyME contratistas, reescrito con:
 
@@ -65,15 +65,64 @@ Route Handlers:
 - `/api/hr/documents`
 - `/api/dashboard`
 - `/api/modules` (metadata de modulos habilitados)
+- `/api/onboarding/tenant` (alta de empresa self-serve)
+- `/api/tenant/users` (usuarios por tenant)
+- `/api/tenant/invitations` (invitaciones por tenant)
+- `/api/auth/context` (contexto auth + memberships)
+- `/api/auth/switch-tenant` (cambio de empresa activa)
+- `/api/auth/accept-invitation` (aceptacion de invitacion)
+- `/api/platform/tenants` (consola global platform_admin)
+- `/api/platform/domains` (dominios tenant)
 
 Roles (custom claims):
 
-- `admin`
+- `platform_admin`
+- `tenant_admin`
 - `tender_lead`
 - `contract_manager`
 - `finance`
 - `hr`
 - `viewer`
+
+## Flujos SaaS (como se usa)
+
+### 1) Usuario nuevo (sin empresa)
+
+1. Inicia sesion con Google o email/password.
+2. Si no tiene memberships activas, se habilita onboarding.
+3. En `/onboarding`, crea la empresa (nombre + slug).
+4. Queda `tenant_admin` de esa empresa.
+
+### 2) Agregar otro usuario a la misma empresa
+
+1. Entrar con un `tenant_admin`.
+2. Ir a `Administracion > Usuarios y roles`.
+3. Crear invitacion al correo objetivo.
+4. El invitado abre el link (`/invitacion/aceptar?token=...`) e inicia sesion con ese mismo email.
+5. Acepta la invitacion y entra al ambiente.
+
+Importante: para pertenecer a una empresa existente, **debe ser invitado**.
+No queda asociado automaticamente solo por entrar con Google.
+
+### 3) Un mismo usuario en mas de una empresa
+
+Opciones:
+
+1. Crear otra empresa desde `/onboarding` usando el mismo usuario.
+2. O ser invitado (mismo email) desde otra empresa.
+
+Luego puede cambiar de ambiente desde el selector `Ambiente` en la cabecera (topbar).
+
+## Prueba rapida recomendada
+
+Caso con dos correos tuyos:
+
+1. Correo A: login -> onboarding -> crea Empresa A.
+2. Correo A: invita a Correo B desde `Administracion > Usuarios y roles`.
+3. Correo B: login -> abre link y acepta invitacion.
+4. Correo B: verifica acceso solo a Empresa A.
+5. Correo B: crea Empresa B en `/onboarding`.
+6. Correo B: usa selector `Ambiente` para cambiar entre Empresa A y Empresa B.
 
 ## Requisitos
 
@@ -106,13 +155,14 @@ npm run dev
 
 4. Abrir `http://localhost:3000`.
 
-## Bootstrap del primer admin
+## Bootstrap del primer tenant admin
 
-Despues del primer login con Google (para crear usuario), asigna claims admin:
+Despues del primer login con Google (para crear usuario), asigna claims:
 
 ```powershell
 $env:BOOTSTRAP_ADMIN_EMAIL="tu-email@dominio.com"
 $env:BOOTSTRAP_TENANT_ID="crea-default"
+$env:BOOTSTRAP_PLATFORM_ADMIN="false" # true si quieres plataforma global
 npm run bootstrap:admin
 ```
 
@@ -129,7 +179,7 @@ Funciones incluidas:
 - `syncDocumentStatuses`: job diario para recalcular estado documental + alertas
 - `auditContractChanges`: auditoria sobre contratos (configurable por coleccion)
 - `auditFinanceChanges`: auditoria sobre finanzas (configurable por coleccion)
-- `assignUserRole`: callable para asignar rol/tenant (solo admin)
+- `assignUserRole`: callable para asignar claims (tenant_admin/platform_admin)
 
 ## Datos demo
 
