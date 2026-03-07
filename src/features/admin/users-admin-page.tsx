@@ -29,8 +29,9 @@ type UpdateUserResponse = {
 
 type CreateInvitationResponse = {
   data: TenantInvitation;
-  inviteUrl: string;
+  inviteUrl: string | null;
   sent: boolean;
+  autoAssigned?: boolean;
 };
 
 type PendingUserChange = {
@@ -401,15 +402,17 @@ export function UsersAdminPage() {
                   void navigator.clipboard?.writeText(response.inviteUrl);
                 }
                 setToast({
-                  message: response.sent
-                    ? "Invitacion enviada y link copiado."
-                    : "Invitacion creada. Link copiado para compartir.",
+                  message: response.autoAssigned
+                    ? "Usuario existente asignado directamente al tenant."
+                    : response.sent
+                      ? "Invitacion enviada y link copiado."
+                      : "Invitacion creada. Link copiado para compartir.",
                   tone: "success"
                 });
                 setInviteDrawerOpen(false);
                 setInviteEmail("");
                 setInviteRole("viewer");
-                return loadInvitations();
+                return Promise.all([loadInvitations(), loadUsers()]);
               })
               .catch((err) => {
                 setToast({

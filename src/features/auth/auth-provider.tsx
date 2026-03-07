@@ -124,7 +124,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try {
       await loadAuthContext(token);
     } catch {
-      setNeedsOnboarding(!claims.platformRole && !claims.tenantId);
+      setNeedsOnboarding(false);
       setMemberships([]);
     }
   }, [loadAuthContext, user]);
@@ -156,7 +156,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setTenantRole(claims.tenantRole);
       setPlatformRole(claims.platformRole);
       setTenantId(claims.tenantId);
-      setNeedsOnboarding(!claims.platformRole && !claims.tenantId);
+      setNeedsOnboarding(false);
       try {
         await loadAuthContext(token);
       } catch {

@@ -65,7 +65,7 @@ Route Handlers:
 - `/api/hr/documents`
 - `/api/dashboard`
 - `/api/modules` (metadata de modulos habilitados)
-- `/api/onboarding/tenant` (alta de empresa self-serve)
+- `/api/onboarding/tenant` (legacy, solo platform_admin)
 - `/api/tenant/users` (usuarios por tenant)
 - `/api/tenant/invitations` (invitaciones por tenant)
 - `/api/auth/context` (contexto auth + memberships)
@@ -90,9 +90,9 @@ Roles (custom claims):
 ### 1) Usuario nuevo (sin empresa)
 
 1. Inicia sesion con Google o email/password.
-2. Si no tiene memberships activas, se habilita onboarding.
-3. En `/onboarding`, crea la empresa (nombre + slug).
-4. Queda `tenant_admin` de esa empresa.
+2. Si no tiene memberships activas, debe ser asignado por `platform_admin`.
+3. El `platform_admin` crea/gestiona empresa desde `/platform`.
+4. El `platform_admin` asigna email + rol + tenant.
 
 ### 2) Agregar otro usuario a la misma empresa
 
@@ -116,7 +116,7 @@ No queda asociado automaticamente solo por entrar con Google.
 
 Opciones:
 
-1. Crear otra empresa desde `/onboarding` usando el mismo usuario.
+1. Ser asignado/invitado al tenant desde `platform_admin`.
 2. O ser invitado (mismo email) desde otra empresa.
 
 Luego puede cambiar de ambiente desde el selector `Ambiente` en la cabecera (topbar).
@@ -125,11 +125,11 @@ Luego puede cambiar de ambiente desde el selector `Ambiente` en la cabecera (top
 
 Caso con dos correos tuyos:
 
-1. Correo A: login -> onboarding -> crea Empresa A.
-2. Correo A: invita a Correo B desde `Administracion > Usuarios y roles`.
-3. Correo B: login -> abre link y acepta invitacion.
+1. Correo A (`platform_admin`): crea Empresa A en `/platform`.
+2. Correo A: asigna Correo B a Empresa A (rol) desde `/platform` o invita desde admin tenant.
+3. Correo B: login -> abre link (si aplica) y acepta invitacion.
 4. Correo B: verifica acceso solo a Empresa A.
-5. Correo B: crea Empresa B en `/onboarding`.
+5. Correo A: asigna/invita Correo B a Empresa B.
 6. Correo B: usa selector `Ambiente` para cambiar entre Empresa A y Empresa B.
 
 ## Requisitos

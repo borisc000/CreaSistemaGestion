@@ -27,7 +27,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const onboardingRequired = !auth.platformRole && membershipViews.length === 0;
+    // Onboarding self-serve is deprecated in this phase.
+    // Tenant creation/assignment is managed only by platform admin from /platform.
+    const onboardingRequired = false;
 
     return jsonOk({
       data: {

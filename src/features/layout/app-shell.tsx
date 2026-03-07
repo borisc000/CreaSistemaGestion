@@ -172,9 +172,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             ) : null}
-            <Link className="btn-secondary" href="/onboarding">
-              Agregar empresa
-            </Link>
+            {role === "platform_admin" ? (
+              <Link className="btn-secondary" href="/platform">
+                Gestionar empresas
+              </Link>
+            ) : null}
             {role === "tenant_admin" || role === "platform_admin" ? (
               <Link className="pill" href="/auditoria">
                 Auditoria

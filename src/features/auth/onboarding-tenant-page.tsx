@@ -15,12 +15,25 @@ type OnboardingResponse = {
 
 export function OnboardingTenantPage() {
   const api = useApiClient();
-  const { refreshClaims } = useAuth();
+  const { refreshClaims, role } = useAuth();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  if (role !== "platform_admin") {
+    return (
+      <ModulePage
+        title="Acceso restringido"
+        description="La creacion de empresas esta habilitada solo para platform admin."
+      >
+        <Panel title="Gestion de empresas">
+          <InlineError message="Solicita al platform admin que te asigne una empresa desde /platform." />
+        </Panel>
+      </ModulePage>
+    );
+  }
 
   return (
     <ModulePage

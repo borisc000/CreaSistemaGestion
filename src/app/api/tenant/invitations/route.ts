@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { NextRequest } from "next/server";
 import { TENANT_MEMBER_ROLES, type TenantRole } from "@/lib/auth/roles";
+import { adminAuth } from "@/lib/firebase/admin";
 import { ApiError, jsonError, jsonOk } from "@/server/api/response";
 import { getTenantContext } from "@/server/auth/request-context";
 import { isPlatformAdmin } from "@/server/tenancy/access";
@@ -9,7 +10,8 @@ import {
   getTenantById,
   getTenantInvitationById,
   listTenantInvitations,
-  patchTenantInvitation
+  patchTenantInvitation,
+  upsertTenantMembership
 } from "@/server/tenancy/repository";
 import {
   buildInvitationExpiryDate,
@@ -17,7 +19,8 @@ import {
   ensureTenantCapacity,
   generateInvitationToken,
   getPreferredTenantHost,
-  sendInvitationEmail
+  sendInvitationEmail,
+  syncCustomClaimsForMembership
 } from "@/server/tenancy/service";
 
 const createInvitationSchema = z.object({
@@ -76,6 +79,7 @@ export async function POST(req: NextRequest) {
     const parsed = createInvitationSchema.parse(await req.json());
     const role = parseTenantRole(parsed.role);
     const tenantId = resolveTargetTenantId(context, parsed.tenantId || null);
+    const email = parsed.email.toLowerCase();
     const tenant = await getTenantById(tenantId);
     if (!tenant) {
       throw new ApiError(404, "Tenant no encontrado.");
@@ -88,12 +92,53 @@ export async function POST(req: NextRequest) {
     const { token, tokenHash } = generateInvitationToken();
     const invitation = await createTenantInvitation({
       tenantId,
-      email: parsed.email.toLowerCase(),
+      email,
       role,
       expiresAt: buildInvitationExpiryDate(),
       invitedByUid: context.uid,
       tokenHash
     });
+
+    let existingUser: Awaited<ReturnType<typeof adminAuth.getUserByEmail>> | null = null;
+    try {
+      existingUser = await adminAuth.getUserByEmail(email);
+    } catch {
+      existingUser = null;
+    }
+
+    if (existingUser) {
+      const acceptedAt = new Date().toISOString();
+      const membership = await upsertTenantMembership({
+        tenantId,
+        uid: existingUser.uid,
+        email,
+        role,
+        status: "active",
+        invitedByUid: context.uid,
+        acceptedAt
+      });
+      await syncCustomClaimsForMembership(existingUser.uid, membership, { preservePlatformRole: true });
+      await patchTenantInvitation(invitation.id, {
+        status: "accepted",
+        acceptedByUid: existingUser.uid,
+        acceptedAt
+      });
+
+      return jsonOk(
+        {
+          data: {
+            ...invitation,
+            status: "accepted",
+            acceptedByUid: existingUser.uid,
+            acceptedAt
+          },
+          inviteUrl: null,
+          sent: false,
+          autoAssigned: true
+        },
+        201
+      );
+    }
 
     const host = await getPreferredTenantHost(tenantId);
     const inviteUrl = buildTenantAccessUrl(host, token);
