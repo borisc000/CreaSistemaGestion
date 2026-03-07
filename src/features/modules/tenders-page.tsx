@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  KpiGrid,
+  ModuleActionBar,
+  ModulePage,
+  Panel,
+  Toast
+} from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Tender, TenderStatus } from "@/types/domain";
 
@@ -11,6 +20,7 @@ const STATUSES: TenderStatus[] = ["draft", "submitted", "won", "lost"];
 export function TendersPage() {
   const { items, error, pending, create, patch } = useCrudModule<Tender>("/api/tenders");
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [isCreateDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [form, setForm] = useState({
     title: "",
     client: "",
@@ -39,8 +49,18 @@ export function TendersPage() {
           }
         ]}
       />
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setCreateDrawerOpen(true)}>
+          Agregar licitacion
+        </button>
+      </ModuleActionBar>
 
-      <Panel title="Nueva licitacion">
+      <FormDrawer
+        isOpen={isCreateDrawerOpen}
+        title="Agregar licitacion"
+        description="Completa los datos base para crear una oportunidad."
+        onClose={() => setCreateDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -51,6 +71,7 @@ export function TendersPage() {
                 return;
               }
               setToast({ message: "Licitacion creada.", tone: "success" });
+              setCreateDrawerOpen(false);
               setForm({
                 title: "",
                 client: "",
@@ -113,8 +134,11 @@ export function TendersPage() {
           <button className="btn-primary" type="submit" disabled={pending === "saving"}>
             Guardar
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setCreateDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
+      </FormDrawer>
 
       <Panel title="Listado">
         <InlineError message={error} />

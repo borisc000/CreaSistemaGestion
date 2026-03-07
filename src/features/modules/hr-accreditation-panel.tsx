@@ -6,7 +6,16 @@ import { useApiClient } from "@/lib/api/use-api-client";
 import { firebaseStorage } from "@/lib/firebase/client";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatDate } from "@/lib/format";
-import { EmptyState, InlineError, Panel, SkeletonRows, StatusBadge, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  ModuleActionBar,
+  Panel,
+  SkeletonRows,
+  StatusBadge,
+  Toast
+} from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import type {
   AccreditationRequirementResult,
@@ -117,6 +126,9 @@ export function HrAccreditationPanel({
   const [pendingAssignmentId, setPendingAssignmentId] = useState<string | null>(null);
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
   const [pendingEvidenceDocumentId, setPendingEvidenceDocumentId] = useState<string | null>(null);
+  const [isAssignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false);
+  const [isTemplateDrawerOpen, setTemplateDrawerOpen] = useState(false);
+  const [isEvidenceDrawerOpen, setEvidenceDrawerOpen] = useState(false);
   const [uploadTarget, setUploadTarget] = useState<AccreditationTemplate | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadExpiryDate, setUploadExpiryDate] = useState("");
@@ -242,8 +254,8 @@ export function HrAccreditationPanel({
     void loadMatrix(selectedPersonId, selectedContractId);
   }, [loadMatrix, selectedContractId, selectedPersonId]);
 
-  const createAssignment = useCallback(async () => {
-    if (!selectedPersonId || !assignmentForm.contractId) return;
+  const createAssignment = useCallback(async (): Promise<boolean> => {
+    if (!selectedPersonId || !assignmentForm.contractId) return false;
     setError(null);
     try {
       await api.post("/api/hr/accreditation/assignments", {
@@ -261,9 +273,11 @@ export function HrAccreditationPanel({
         endDate: ""
       }));
       await loadAssignments(selectedPersonId);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear asignacion.");
       setToast({ message: "No se pudo crear asignacion.", tone: "error" });
+      return false;
     }
   }, [api, assignmentForm.contractId, assignmentForm.endDate, assignmentForm.startDate, loadAssignments, selectedPersonId]);
 
@@ -291,7 +305,7 @@ export function HrAccreditationPanel({
     [api, loadAssignments, selectedPersonId]
   );
 
-  const createTemplate = useCallback(async () => {
+  const createTemplate = useCallback(async (): Promise<boolean> => {
     setError(null);
     try {
       await api.post("/api/hr/accreditation/templates", {
@@ -321,9 +335,11 @@ export function HrAccreditationPanel({
       if (selectedPersonId && selectedContractId) {
         await loadMatrix(selectedPersonId, selectedContractId);
       }
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear plantilla.");
       setToast({ message: "No se pudo crear plantilla.", tone: "error" });
+      return false;
     }
   }, [api, loadMatrix, loadTemplates, newTemplateForm.clientName, newTemplateForm.code, newTemplateForm.contractId, newTemplateForm.enabled, newTemplateForm.name, newTemplateForm.required, newTemplateForm.scope, newTemplateForm.sortOrder, newTemplateForm.validityDays, selectedContractId, selectedPersonId]);
 
@@ -401,8 +417,8 @@ export function HrAccreditationPanel({
     []
   );
 
-  const uploadEvidence = useCallback(async () => {
-    if (!selectedPersonId || !selectedContractId || !uploadTarget || !uploadFile) return;
+  const uploadEvidence = useCallback(async (): Promise<boolean> => {
+    if (!selectedPersonId || !selectedContractId || !uploadTarget || !uploadFile) return false;
 
     setUploading(true);
     setUploadError(null);
@@ -437,9 +453,11 @@ export function HrAccreditationPanel({
       setUploadExpiryDate("");
       await documentsApi.reload();
       await loadMatrix(selectedPersonId, selectedContractId);
+      return true;
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "No se pudo subir evidencia.");
       setToast({ message: "No se pudo subir evidencia.", tone: "error" });
+      return false;
     } finally {
       setUploading(false);
     }
@@ -502,64 +520,11 @@ export function HrAccreditationPanel({
         {!selectedPersonId ? <EmptyState message="Selecciona una persona para gestionar asignaciones." /> : null}
         {selectedPersonId ? (
           <>
-            <form
-              className="form-grid"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void createAssignment();
-              }}
-            >
-              <label>
-                Contrato
-                <select
-                  value={assignmentForm.contractId}
-                  onChange={(event) =>
-                    setAssignmentForm((current) => ({
-                      ...current,
-                      contractId: event.target.value
-                    }))
-                  }
-                  required
-                >
-                  <option value="">Selecciona contrato</option>
-                  {contractsApi.items.map((contract) => (
-                    <option key={contract.id} value={contract.id}>
-                      {contract.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Inicio
-                <input
-                  type="date"
-                  value={assignmentForm.startDate}
-                  onChange={(event) =>
-                    setAssignmentForm((current) => ({
-                      ...current,
-                      startDate: event.target.value
-                    }))
-                  }
-                  required
-                />
-              </label>
-              <label>
-                Fin
-                <input
-                  type="date"
-                  value={assignmentForm.endDate}
-                  onChange={(event) =>
-                    setAssignmentForm((current) => ({
-                      ...current,
-                      endDate: event.target.value
-                    }))
-                  }
-                />
-              </label>
-              <button className="btn-primary" type="submit" disabled={!selectedPersonId}>
-                Asignar contrato
+            <ModuleActionBar>
+              <button className="btn-primary" type="button" onClick={() => setAssignmentDrawerOpen(true)}>
+                Agregar asignacion
               </button>
-            </form>
+            </ModuleActionBar>
 
             {loadingAssignments ? <SkeletonRows rows={3} /> : null}
 
@@ -694,7 +659,12 @@ export function HrAccreditationPanel({
                             <button
                               className="btn-secondary"
                               type="button"
-                              onClick={() => setUploadTarget(requirement.template)}
+                              onClick={() => {
+                                setUploadTarget(requirement.template);
+                                setUploadFile(null);
+                                setUploadExpiryDate("");
+                                setEvidenceDrawerOpen(true);
+                              }}
                             >
                               Subir evidencia
                             </button>
@@ -726,144 +696,12 @@ export function HrAccreditationPanel({
         ) : null}
       </Panel>
 
-      <Panel title="Subir evidencia">
-        {!uploadTarget ? <EmptyState message="Selecciona 'Subir evidencia' en la matriz para cargar un requisito." /> : null}
-
-        {uploadTarget ? (
-          <form
-            className="form-grid"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void uploadEvidence();
-            }}
-          >
-            <label>
-              Requisito
-              <input value={`${uploadTarget.name} (${uploadTarget.code})`} readOnly />
-            </label>
-            <label>
-              Scope
-              <input value={uploadTarget.scope} readOnly />
-            </label>
-            <label>
-              Vencimiento (opcional)
-              <input
-                type="date"
-                value={uploadExpiryDate}
-                onChange={(event) => setUploadExpiryDate(event.target.value)}
-              />
-            </label>
-            <label>
-              Archivo
-              <input type="file" required onChange={(event) => setUploadFile(event.target.files?.[0] || null)} />
-            </label>
-            <button className="btn-primary" type="submit" disabled={!uploadFile || uploading}>
-              {uploading ? "Subiendo..." : "Guardar evidencia"}
-            </button>
-          </form>
-        ) : null}
-      </Panel>
-
       <Panel title="Plantillas de acreditacion (CRUD basico)">
-        <form
-          className="form-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createTemplate();
-          }}
-        >
-          <label>
-            Codigo
-            <input
-              value={newTemplateForm.code}
-              onChange={(event) => setNewTemplateForm((current) => ({ ...current, code: event.target.value }))}
-              required
-            />
-          </label>
-          <label>
-            Nombre
-            <input
-              value={newTemplateForm.name}
-              onChange={(event) => setNewTemplateForm((current) => ({ ...current, name: event.target.value }))}
-              required
-            />
-          </label>
-          <label>
-            Scope
-            <select
-              value={newTemplateForm.scope}
-              onChange={(event) =>
-                setNewTemplateForm((current) => ({
-                  ...current,
-                  scope: event.target.value as AccreditationScope
-                }))
-              }
-            >
-              <option value="global">global</option>
-              <option value="client">client</option>
-              <option value="contract">contract</option>
-            </select>
-          </label>
-          <label>
-            Cliente
-            <input
-              value={newTemplateForm.clientName}
-              onChange={(event) => setNewTemplateForm((current) => ({ ...current, clientName: event.target.value }))}
-              disabled={newTemplateForm.scope === "global"}
-            />
-          </label>
-          <label>
-            Contrato
-            <select
-              value={newTemplateForm.contractId}
-              onChange={(event) => setNewTemplateForm((current) => ({ ...current, contractId: event.target.value }))}
-              disabled={newTemplateForm.scope !== "contract"}
-            >
-              <option value="">Selecciona</option>
-              {contractsApi.items.map((contract) => (
-                <option key={contract.id} value={contract.id}>
-                  {contract.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Vigencia dias
-            <input
-              type="number"
-              min={1}
-              value={newTemplateForm.validityDays}
-              onChange={(event) => setNewTemplateForm((current) => ({ ...current, validityDays: event.target.value }))}
-            />
-          </label>
-          <label>
-            Orden
-            <input
-              type="number"
-              min={0}
-              value={newTemplateForm.sortOrder}
-              onChange={(event) => setNewTemplateForm((current) => ({ ...current, sortOrder: event.target.value }))}
-            />
-          </label>
-          <label>
-            Requerido
-            <select
-              value={newTemplateForm.required ? "true" : "false"}
-              onChange={(event) =>
-                setNewTemplateForm((current) => ({
-                  ...current,
-                  required: event.target.value === "true"
-                }))
-              }
-            >
-              <option value="true">Si</option>
-              <option value="false">No</option>
-            </select>
-          </label>
-          <button className="btn-primary" type="submit">
-            Crear plantilla
+        <ModuleActionBar>
+          <button className="btn-primary" type="button" onClick={() => setTemplateDrawerOpen(true)}>
+            Agregar plantilla
           </button>
-        </form>
+        </ModuleActionBar>
 
         {loadingTemplates ? <SkeletonRows rows={4} /> : null}
 
@@ -993,6 +831,247 @@ export function HrAccreditationPanel({
           </div>
         ) : null}
       </Panel>
+
+      <FormDrawer
+        isOpen={isAssignmentDrawerOpen}
+        title="Agregar asignacion persona-contrato"
+        description="Permite multi-contrato con fechas de vigencia."
+        onClose={() => setAssignmentDrawerOpen(false)}
+      >
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createAssignment().then((ok) => {
+              if (ok) {
+                setAssignmentDrawerOpen(false);
+              }
+            });
+          }}
+        >
+          <label>
+            Contrato
+            <select
+              value={assignmentForm.contractId}
+              onChange={(event) =>
+                setAssignmentForm((current) => ({
+                  ...current,
+                  contractId: event.target.value
+                }))
+              }
+              required
+            >
+              <option value="">Selecciona contrato</option>
+              {contractsApi.items.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Inicio
+            <input
+              type="date"
+              value={assignmentForm.startDate}
+              onChange={(event) =>
+                setAssignmentForm((current) => ({
+                  ...current,
+                  startDate: event.target.value
+                }))
+              }
+              required
+            />
+          </label>
+          <label>
+            Fin
+            <input
+              type="date"
+              value={assignmentForm.endDate}
+              onChange={(event) =>
+                setAssignmentForm((current) => ({
+                  ...current,
+                  endDate: event.target.value
+                }))
+              }
+            />
+          </label>
+          <button className="btn-primary" type="submit" disabled={!selectedPersonId}>
+            Guardar asignacion
+          </button>
+          <button className="btn-secondary" type="button" onClick={() => setAssignmentDrawerOpen(false)}>
+            Cancelar
+          </button>
+        </form>
+      </FormDrawer>
+
+      <FormDrawer
+        isOpen={isTemplateDrawerOpen}
+        title="Agregar plantilla de acreditacion"
+        description="Define requisitos globales, por cliente o por contrato."
+        onClose={() => setTemplateDrawerOpen(false)}
+      >
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createTemplate().then((ok) => {
+              if (ok) {
+                setTemplateDrawerOpen(false);
+              }
+            });
+          }}
+        >
+          <label>
+            Codigo
+            <input
+              value={newTemplateForm.code}
+              onChange={(event) => setNewTemplateForm((current) => ({ ...current, code: event.target.value }))}
+              required
+            />
+          </label>
+          <label>
+            Nombre
+            <input
+              value={newTemplateForm.name}
+              onChange={(event) => setNewTemplateForm((current) => ({ ...current, name: event.target.value }))}
+              required
+            />
+          </label>
+          <label>
+            Scope
+            <select
+              value={newTemplateForm.scope}
+              onChange={(event) =>
+                setNewTemplateForm((current) => ({
+                  ...current,
+                  scope: event.target.value as AccreditationScope
+                }))
+              }
+            >
+              <option value="global">global</option>
+              <option value="client">client</option>
+              <option value="contract">contract</option>
+            </select>
+          </label>
+          <label>
+            Cliente
+            <input
+              value={newTemplateForm.clientName}
+              onChange={(event) => setNewTemplateForm((current) => ({ ...current, clientName: event.target.value }))}
+              disabled={newTemplateForm.scope === "global"}
+            />
+          </label>
+          <label>
+            Contrato
+            <select
+              value={newTemplateForm.contractId}
+              onChange={(event) => setNewTemplateForm((current) => ({ ...current, contractId: event.target.value }))}
+              disabled={newTemplateForm.scope !== "contract"}
+            >
+              <option value="">Selecciona</option>
+              {contractsApi.items.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Vigencia dias
+            <input
+              type="number"
+              min={1}
+              value={newTemplateForm.validityDays}
+              onChange={(event) => setNewTemplateForm((current) => ({ ...current, validityDays: event.target.value }))}
+            />
+          </label>
+          <label>
+            Orden
+            <input
+              type="number"
+              min={0}
+              value={newTemplateForm.sortOrder}
+              onChange={(event) => setNewTemplateForm((current) => ({ ...current, sortOrder: event.target.value }))}
+            />
+          </label>
+          <label>
+            Requerido
+            <select
+              value={newTemplateForm.required ? "true" : "false"}
+              onChange={(event) =>
+                setNewTemplateForm((current) => ({
+                  ...current,
+                  required: event.target.value === "true"
+                }))
+              }
+            >
+              <option value="true">Si</option>
+              <option value="false">No</option>
+            </select>
+          </label>
+          <button className="btn-primary" type="submit">
+            Guardar plantilla
+          </button>
+          <button className="btn-secondary" type="button" onClick={() => setTemplateDrawerOpen(false)}>
+            Cancelar
+          </button>
+        </form>
+      </FormDrawer>
+
+      <FormDrawer
+        isOpen={isEvidenceDrawerOpen}
+        title="Cargar evidencia de acreditacion"
+        description="Adjunta el documento para el requisito seleccionado."
+        onClose={() => {
+          setEvidenceDrawerOpen(false);
+          setUploadTarget(null);
+          setUploadFile(null);
+          setUploadExpiryDate("");
+        }}
+      >
+        {!uploadTarget ? <EmptyState message="Selecciona 'Subir evidencia' desde la matriz." /> : null}
+        {uploadTarget ? (
+          <form
+            className="form-grid"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void uploadEvidence().then((ok) => {
+                if (ok) {
+                  setEvidenceDrawerOpen(false);
+                }
+              });
+            }}
+          >
+            <label>
+              Requisito
+              <input value={`${uploadTarget.name} (${uploadTarget.code})`} readOnly />
+            </label>
+            <label>
+              Scope
+              <input value={uploadTarget.scope} readOnly />
+            </label>
+            <label>
+              Vencimiento (opcional)
+              <input
+                type="date"
+                value={uploadExpiryDate}
+                onChange={(event) => setUploadExpiryDate(event.target.value)}
+              />
+            </label>
+            <label>
+              Archivo
+              <input type="file" required onChange={(event) => setUploadFile(event.target.files?.[0] || null)} />
+            </label>
+            <button className="btn-primary" type="submit" disabled={!uploadFile || uploading}>
+              {uploading ? "Subiendo..." : "Guardar evidencia"}
+            </button>
+            <button className="btn-secondary" type="button" onClick={() => setEvidenceDrawerOpen(false)}>
+              Cancelar
+            </button>
+          </form>
+        ) : null}
+      </FormDrawer>
     </>
   );
 }

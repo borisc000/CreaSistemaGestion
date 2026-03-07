@@ -5,7 +5,15 @@ import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { useApiClient } from "@/lib/api/use-api-client";
 import { USER_ROLES } from "@/types/auth";
 import type { AdminUserSummary, UserRole } from "@/types/domain";
-import { EmptyState, InlineError, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  ModulePage,
+  Panel,
+  SkeletonRows,
+  Toast
+} from "@/features/modules/module-ui";
 
 type UsersResponse = {
   data: AdminUserSummary[];
@@ -267,13 +275,19 @@ export function UsersAdminPage() {
         ) : null}
       </Panel>
 
-      {pendingChange ? (
-        <Panel title="Confirmar actualizacion de claims">
+      <FormDrawer
+        isOpen={Boolean(pendingChange)}
+        title="Confirmar actualizacion de permisos"
+        description="Este cambio modificara role y tenant del usuario seleccionado."
+        onClose={() => setPendingChange(null)}
+      >
+        {pendingChange ? (
+        <>
           <p>
             Se actualizara el usuario <strong>{pendingChange.email || pendingChange.uid}</strong> a rol{" "}
             <strong>{pendingChange.role}</strong> en tenant <strong>{pendingChange.tenantId}</strong>.
           </p>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="toolbar">
             <button className="btn-secondary" type="button" onClick={() => setPendingChange(null)} disabled={saving}>
               Cancelar
             </button>
@@ -305,8 +319,9 @@ export function UsersAdminPage() {
           {selectedUser?.role !== pendingChange.role || selectedUser?.tenantId !== pendingChange.tenantId ? (
             <p className="inline-error">El cambio impactara permisos al refrescar el token del usuario afectado.</p>
           ) : null}
-        </Panel>
-      ) : null}
+        </>
+        ) : null}
+      </FormDrawer>
     </ModulePage>
   );
 }

@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  KpiGrid,
+  ModuleActionBar,
+  ModulePage,
+  Panel,
+  Toast
+} from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Contract, FinanceEntry } from "@/types/domain";
 
@@ -13,6 +22,7 @@ export function FinancePage() {
   const financeApi = useCrudModule<FinanceEntry>("/api/finance");
   const contractsApi = useCrudModule<Contract>("/api/contracts");
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [isCreateDrawerOpen, setCreateDrawerOpen] = useState(false);
 
   const [form, setForm] = useState({
     contractId: "",
@@ -56,8 +66,18 @@ export function FinancePage() {
           { label: "Flujo neto mes", value: formatCurrency(monthTotals.net) }
         ]}
       />
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setCreateDrawerOpen(true)}>
+          Agregar movimiento
+        </button>
+      </ModuleActionBar>
 
-      <Panel title="Nuevo movimiento financiero">
+      <FormDrawer
+        isOpen={isCreateDrawerOpen}
+        title="Agregar movimiento financiero"
+        description="Registra ingreso o egreso vinculado a contrato."
+        onClose={() => setCreateDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -68,6 +88,7 @@ export function FinancePage() {
                 return;
               }
               setToast({ message: "Movimiento financiero creado.", tone: "success" });
+              setCreateDrawerOpen(false);
               setForm({
                 contractId: "",
                 type: "income",
@@ -163,8 +184,11 @@ export function FinancePage() {
           <button className="btn-primary" type="submit" disabled={financeApi.pending === "saving"}>
             Guardar
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setCreateDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
+      </FormDrawer>
 
       <Panel title="Libro financiero">
         <InlineError message={financeApi.error || contractsApi.error} />

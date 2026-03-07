@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  KpiGrid,
+  ModuleActionBar,
+  ModulePage,
+  Panel,
+  StatusBadge,
+  Toast
+} from "@/features/modules/module-ui";
 import { HrAccreditationPanel } from "@/features/modules/hr-accreditation-panel";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
@@ -57,6 +67,8 @@ export function HrPeoplePage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<HrPeopleTab>("people");
+  const [isPersonDrawerOpen, setPersonDrawerOpen] = useState(false);
+  const [isDocumentDrawerOpen, setDocumentDrawerOpen] = useState(false);
   const [documentActionPendingId, setDocumentActionPendingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
@@ -77,8 +89,8 @@ export function HrPeoplePage() {
     };
   }, [documentsApi.items, peopleApi.items]);
 
-  async function handleDocumentUpload() {
-    if (!documentForm.personId || !file) return;
+  async function handleDocumentUpload(): Promise<boolean> {
+    if (!documentForm.personId || !file) return false;
 
     setUploading(true);
     setUploadError(null);
@@ -103,9 +115,11 @@ export function HrPeoplePage() {
       setDocumentForm({ personId: "", docType: REQUIRED_PERSON_DOCUMENT_TYPES[0], expiryDate: "" });
       setFile(null);
       setToast({ message: "Documento subido y registrado.", tone: "success" });
+      return true;
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "No se pudo subir documento.");
       setToast({ message: "No se pudo subir documento.", tone: "error" });
+      return false;
     } finally {
       setUploading(false);
     }
@@ -193,7 +207,19 @@ export function HrPeoplePage() {
       <InlineError message={uploadError || peopleApi.error || documentsApi.error || contractsApi.error} />
 
       {activeTab === "people" ? (
-      <Panel title="Nueva persona">
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setPersonDrawerOpen(true)}>
+          Agregar persona
+        </button>
+      </ModuleActionBar>
+      ) : null}
+
+      <FormDrawer
+        isOpen={isPersonDrawerOpen}
+        title="Agregar persona"
+        description="Crea una nueva ficha de persona."
+        onClose={() => setPersonDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -207,6 +233,7 @@ export function HrPeoplePage() {
                 return;
               }
               setToast({ message: "Persona creada.", tone: "success" });
+              setPersonDrawerOpen(false);
               setForm({
                 fullName: "",
                 idNumber: "",
@@ -283,17 +310,35 @@ export function HrPeoplePage() {
           <button className="btn-primary" type="submit" disabled={peopleApi.pending === "saving"}>
             Guardar persona
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setPersonDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
-      ) : null}
+      </FormDrawer>
 
       {activeTab === "documents" ? (
-      <Panel title="Subir documento">
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setDocumentDrawerOpen(true)}>
+          Cargar documento
+        </button>
+      </ModuleActionBar>
+      ) : null}
+
+      <FormDrawer
+        isOpen={isDocumentDrawerOpen}
+        title="Cargar documento"
+        description="Sube el archivo y registra su metadato documental."
+        onClose={() => setDocumentDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void handleDocumentUpload();
+            void handleDocumentUpload().then((ok) => {
+              if (ok) {
+                setDocumentDrawerOpen(false);
+              }
+            });
           }}
         >
           <label>
@@ -343,9 +388,11 @@ export function HrPeoplePage() {
           >
             {uploading ? "Subiendo..." : "Guardar documento"}
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setDocumentDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
-      ) : null}
+      </FormDrawer>
 
       {activeTab === "people" ? (
       <Panel title="Personas y cumplimiento documental">

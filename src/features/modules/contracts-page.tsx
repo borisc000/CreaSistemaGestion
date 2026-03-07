@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  KpiGrid,
+  ModuleActionBar,
+  ModulePage,
+  Panel,
+  Toast
+} from "@/features/modules/module-ui";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Contract, ContractStatus, Tender } from "@/types/domain";
 
@@ -12,6 +21,7 @@ export function ContractsPage() {
   const contractsApi = useCrudModule<Contract>("/api/contracts");
   const tendersApi = useCrudModule<Tender>("/api/tenders");
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [isCreateDrawerOpen, setCreateDrawerOpen] = useState(false);
 
   const wonTenders = useMemo(() => tendersApi.items.filter((item) => item.status === "won"), [tendersApi.items]);
 
@@ -41,8 +51,18 @@ export function ContractsPage() {
           { label: "Margen esperado", value: formatCurrency(margin) }
         ]}
       />
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setCreateDrawerOpen(true)}>
+          Agregar contrato
+        </button>
+      </ModuleActionBar>
 
-      <Panel title="Nuevo contrato">
+      <FormDrawer
+        isOpen={isCreateDrawerOpen}
+        title="Agregar contrato"
+        description="Registra la informacion base del contrato."
+        onClose={() => setCreateDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -53,6 +73,7 @@ export function ContractsPage() {
                 return;
               }
               setToast({ message: "Contrato creado.", tone: "success" });
+              setCreateDrawerOpen(false);
               setForm({
                 tenderId: "",
                 name: "",
@@ -124,8 +145,11 @@ export function ContractsPage() {
           <button className="btn-primary" type="submit" disabled={contractsApi.pending === "saving"}>
             Guardar
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setCreateDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
+      </FormDrawer>
 
       <Panel title="Listado">
         <InlineError message={contractsApi.error || tendersApi.error} />

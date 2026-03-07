@@ -17,7 +17,16 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  KpiGrid,
+  ModuleActionBar,
+  ModulePage,
+  Panel,
+  Toast
+} from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
@@ -121,6 +130,8 @@ export function HrRecruitingPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
+  const [isVacancyDrawerOpen, setVacancyDrawerOpen] = useState(false);
+  const [isCandidateDrawerOpen, setCandidateDrawerOpen] = useState(false);
 
   const [vacancyForm, setVacancyForm] = useState({
     title: "",
@@ -174,7 +185,7 @@ export function HrRecruitingPage() {
     [activeCandidateId, candidates]
   );
 
-  const submitVacancy = useCallback(async () => {
+  const submitVacancy = useCallback(async (): Promise<boolean> => {
     setPending(true);
     setError(null);
     try {
@@ -190,13 +201,15 @@ export function HrRecruitingPage() {
       setVacancyForm({ title: "", area: "", contractId: "", openings: 1, targetDate: "", status: "open" });
       await load();
       setToast({ message: "Vacante creada.", tone: "success" });
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear vacante.");
       setPending(false);
+      return false;
     }
   }, [api, load, vacancyForm]);
 
-  const submitCandidate = useCallback(async () => {
+  const submitCandidate = useCallback(async (): Promise<boolean> => {
     setPending(true);
     setError(null);
     try {
@@ -211,9 +224,11 @@ export function HrRecruitingPage() {
       setCandidateForm({ vacancyId: "", name: "", source: "", salary: 0, stage: "intake", hiredAt: "" });
       await load();
       setToast({ message: "Candidato creado.", tone: "success" });
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear candidato.");
       setPending(false);
+      return false;
     }
   }, [api, candidateForm, load]);
 
@@ -280,13 +295,30 @@ export function HrRecruitingPage() {
           { label: "Candidatos activos", value: activeCandidates }
         ]}
       />
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setVacancyDrawerOpen(true)}>
+          Agregar vacante
+        </button>
+        <button className="btn-secondary" type="button" onClick={() => setCandidateDrawerOpen(true)}>
+          Agregar candidato
+        </button>
+      </ModuleActionBar>
 
-      <Panel title="Nueva vacante">
+      <FormDrawer
+        isOpen={isVacancyDrawerOpen}
+        title="Agregar vacante"
+        description="Registra una vacante asociada o no a contrato."
+        onClose={() => setVacancyDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void submitVacancy();
+            void submitVacancy().then((ok) => {
+              if (ok) {
+                setVacancyDrawerOpen(false);
+              }
+            });
           }}
         >
           <label>
@@ -353,15 +385,27 @@ export function HrRecruitingPage() {
           <button className="btn-primary" type="submit" disabled={pending}>
             Guardar vacante
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setVacancyDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
+      </FormDrawer>
 
-      <Panel title="Nuevo candidato">
+      <FormDrawer
+        isOpen={isCandidateDrawerOpen}
+        title="Agregar candidato"
+        description="Ingresa un candidato y su etapa inicial."
+        onClose={() => setCandidateDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void submitCandidate();
+            void submitCandidate().then((ok) => {
+              if (ok) {
+                setCandidateDrawerOpen(false);
+              }
+            });
           }}
         >
           <label>
@@ -429,8 +473,11 @@ export function HrRecruitingPage() {
           <button className="btn-primary" type="submit" disabled={pending}>
             Guardar candidato
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setCandidateDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
+      </FormDrawer>
 
       <Panel title="Vacantes activas">
         <InlineError message={error || contractsApi.error} />

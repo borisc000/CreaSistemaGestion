@@ -17,7 +17,16 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, Toast } from "@/features/modules/module-ui";
+import {
+  EmptyState,
+  FormDrawer,
+  InlineError,
+  KpiGrid,
+  ModuleActionBar,
+  ModulePage,
+  Panel,
+  Toast
+} from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
@@ -101,6 +110,7 @@ export function OperationsPage() {
   const contractsApi = useCrudModule<Contract>("/api/contracts");
   const [boardTasks, setBoardTasks] = useState<OperationTask[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [isCreateDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [interactionError, setInteractionError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
@@ -178,8 +188,18 @@ export function OperationsPage() {
           { label: "Completadas", value: boardTasks.filter((item) => item.status === "done").length }
         ]}
       />
+      <ModuleActionBar>
+        <button className="btn-primary" type="button" onClick={() => setCreateDrawerOpen(true)}>
+          Agregar tarea
+        </button>
+      </ModuleActionBar>
 
-      <Panel title="Nueva tarea operativa">
+      <FormDrawer
+        isOpen={isCreateDrawerOpen}
+        title="Agregar tarea operativa"
+        description="Crea una tarea y su etapa inicial para el tablero."
+        onClose={() => setCreateDrawerOpen(false)}
+      >
         <form
           className="form-grid"
           onSubmit={(event) => {
@@ -191,6 +211,7 @@ export function OperationsPage() {
               }
               setForm({ contractId: "", title: "", owner: "", priority: "medium", dueDate: "", status: "todo" });
               setToast({ message: "Tarea creada.", tone: "success" });
+              setCreateDrawerOpen(false);
             });
           }}
         >
@@ -238,8 +259,11 @@ export function OperationsPage() {
           <button className="btn-primary" type="submit" disabled={operationsApi.pending === "saving"}>
             Guardar
           </button>
+          <button className="btn-secondary" type="button" onClick={() => setCreateDrawerOpen(false)}>
+            Cancelar
+          </button>
         </form>
-      </Panel>
+      </FormDrawer>
 
       <Panel title="Tablero operativo (drag & drop)">
         <p>Puedes arrastrar cualquier tarjeta con mouse/touch para mover tareas entre etapas.</p>
