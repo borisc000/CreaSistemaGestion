@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TENANT_MEMBER_ROLES, getTenantRoleLabel, type TenantRole } from "@/lib/auth/roles";
 import { useApiClient } from "@/lib/api/use-api-client";
+import { useAuth } from "@/features/auth/auth-provider";
 import type { AdminUserSummary, TenantInvitation } from "@/types/domain";
 import {
   EmptyState,
@@ -38,7 +39,10 @@ type PendingUserChange = {
   uid: string;
   email: string | null;
   role: TenantRole;
+  currentRole: TenantRole;
 };
+
+const TENANT_ADMIN_PROMOTION_CONFIRM_TEXT = "PROMOVER A ADMIN EMPRESA";
 
 function toQueryParams(params: Record<string, string | null | undefined>) {
   const search = new URLSearchParams();
@@ -51,6 +55,7 @@ function toQueryParams(params: Record<string, string | null | undefined>) {
 
 export function UsersAdminPage() {
   const api = useApiClient();
+  const { user: authUser, role: currentUserRole } = useAuth();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [invitations, setInvitations] = useState<TenantInvitation[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +69,7 @@ export function UsersAdminPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "invited" | "revoked">("all");
   const [drafts, setDrafts] = useState<Record<string, TenantRole>>({});
   const [pendingChange, setPendingChange] = useState<PendingUserChange | null>(null);
+  const [promotionConfirmText, setPromotionConfirmText] = useState("");
 
   const [inviteDrawerOpen, setInviteDrawerOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -117,6 +123,17 @@ export function UsersAdminPage() {
     [pendingChange, users]
   );
 
+  const assignableRoles = useMemo(() => {
+    if (currentUserRole === "tenant_manager") {
+      return TENANT_MEMBER_ROLES.filter((role) => role !== "tenant_admin");
+    }
+    return TENANT_MEMBER_ROLES;
+  }, [currentUserRole]);
+
+  const isSensitivePromotion = Boolean(
+    pendingChange && pendingChange.currentRole === "viewer" && pendingChange.role === "tenant_admin"
+  );
+
   return (
     <ModulePage
       title="Administracion de usuarios del ambiente"
@@ -126,7 +143,7 @@ export function UsersAdminPage() {
 
       <ModuleActionBar>
         <button className="btn-primary" type="button" onClick={() => setInviteDrawerOpen(true)}>
-          Invitar usuario
+          Invitar o asignar usuario
         </button>
       </ModuleActionBar>
 
@@ -187,6 +204,10 @@ export function UsersAdminPage() {
                 {users.map((user) => {
                   const draftRole = drafts[user.uid] || user.role;
                   const changed = draftRole !== user.role;
+                  const roleOptions = assignableRoles.includes(user.role)
+                    ? assignableRoles
+                    : [user.role, ...assignableRoles.filter((role) => role !== user.role)];
+                  const isSelf = user.uid === authUser?.uid;
                   return (
                     <tr key={user.uid}>
                       <td>{user.email || "Sin email"}</td>
@@ -203,7 +224,7 @@ export function UsersAdminPage() {
                             }))
                           }
                         >
-                          {TENANT_MEMBER_ROLES.map((role) => (
+                          {roleOptions.map((role) => (
                             <option key={role} value={role}>
                               {getTenantRoleLabel(role)}
                             </option>
@@ -214,14 +235,17 @@ export function UsersAdminPage() {
                         <button
                           className="btn-primary"
                           type="button"
-                          disabled={!changed || saving}
-                          onClick={() =>
+                          disabled={!changed || saving || isSelf}
+                          onClick={() => {
+                            setPromotionConfirmText("");
                             setPendingChange({
                               uid: user.uid,
                               email: user.email,
-                              role: draftRole
-                            })
-                          }
+                              role: draftRole,
+                              currentRole: user.role
+                            });
+                          }}
+                          title={isSelf ? "No puedes cambiar tu propio rol." : undefined}
                         >
                           Guardar
                         </button>
@@ -333,7 +357,10 @@ export function UsersAdminPage() {
         isOpen={Boolean(pendingChange)}
         title="Confirmar cambio de rol"
         description="Se actualizara el rol de este usuario dentro de tu tenant."
-        onClose={() => setPendingChange(null)}
+        onClose={() => {
+          setPendingChange(null);
+          setPromotionConfirmText("");
+        }}
       >
         {pendingChange ? (
           <>
@@ -341,6 +368,16 @@ export function UsersAdminPage() {
               Usuario <strong>{pendingChange.email || pendingChange.uid}</strong> pasara a rol{" "}
               <strong>{getTenantRoleLabel(pendingChange.role)}</strong>.
             </p>
+            {isSensitivePromotion ? (
+              <label>
+                Confirmacion sensible (escribe exactamente: <strong>{TENANT_ADMIN_PROMOTION_CONFIRM_TEXT}</strong>)
+                <input
+                  value={promotionConfirmText}
+                  onChange={(event) => setPromotionConfirmText(event.target.value)}
+                  placeholder={TENANT_ADMIN_PROMOTION_CONFIRM_TEXT}
+                />
+              </label>
+            ) : null}
             <div className="toolbar">
               <button className="btn-secondary" type="button" onClick={() => setPendingChange(null)} disabled={saving}>
                 Cancelar
@@ -348,18 +385,20 @@ export function UsersAdminPage() {
               <button
                 className="btn-primary"
                 type="button"
-                disabled={saving}
+                disabled={saving || (isSensitivePromotion && promotionConfirmText !== TENANT_ADMIN_PROMOTION_CONFIRM_TEXT)}
                 onClick={() => {
                   if (!pendingChange) return;
                   setSaving(true);
                   void api
                     .patch<UpdateUserResponse>("/api/tenant/users", {
                       uid: pendingChange.uid,
-                      role: pendingChange.role
+                      role: pendingChange.role,
+                      confirmPromotionText: isSensitivePromotion ? promotionConfirmText : undefined
                     })
                     .then(() => {
                       setToast({ message: "Rol actualizado.", tone: "success" });
                       setPendingChange(null);
+                      setPromotionConfirmText("");
                       return loadUsers();
                     })
                     .catch((err) => {
@@ -383,8 +422,8 @@ export function UsersAdminPage() {
 
       <FormDrawer
         isOpen={inviteDrawerOpen}
-        title="Invitar usuario al tenant"
-        description="Se enviara un enlace de acceso por email y se copiara el link en pantalla."
+        title="Invitar o asignar usuario al tenant"
+        description="Si el email ya existe en Auth, se asigna directo. Si no existe, queda invitacion pendiente."
         onClose={() => setInviteDrawerOpen(false)}
       >
         <form
@@ -438,7 +477,7 @@ export function UsersAdminPage() {
               value={inviteRole}
               onChange={(event) => setInviteRole(event.target.value as TenantRole)}
             >
-              {TENANT_MEMBER_ROLES.map((role) => (
+              {assignableRoles.map((role) => (
                 <option key={role} value={role}>
                   {getTenantRoleLabel(role)}
                 </option>

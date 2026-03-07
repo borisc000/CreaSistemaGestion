@@ -180,6 +180,30 @@ describe("/api/tenant/invitations route", () => {
     expect(vi.mocked(syncCustomClaimsForMembership)).toHaveBeenCalled();
   });
 
+  it("blocks tenant manager from inviting tenant admin role", async () => {
+    vi.mocked(getTenantContext).mockResolvedValue({
+      tenantId: "tenant-a",
+      uid: "caller-2",
+      role: "tenant_manager",
+      email: "manager@acme.com"
+    });
+
+    const req = new NextRequest("http://localhost/api/tenant/invitations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "next@acme.com",
+        role: "tenant_admin"
+      })
+    });
+
+    const response = await POST(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("no puede invitar");
+  });
+
   it("lists invitations for tenant", async () => {
     vi.mocked(getTenantContext).mockResolvedValue({
       tenantId: "tenant-a",

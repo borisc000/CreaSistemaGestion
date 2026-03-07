@@ -9,10 +9,13 @@ import { syncCustomClaimsForMembership } from "@/server/tenancy/service";
 import { isPlatformAdmin } from "@/server/tenancy/access";
 import type { AdminUserSummary, TenantUserMembership } from "@/types/domain";
 
+const TENANT_ADMIN_PROMOTION_CONFIRM_TEXT = "PROMOVER A ADMIN EMPRESA";
+
 const updateUserSchema = z.object({
   uid: z.string().min(3),
   role: z.string().min(2),
-  tenantId: z.string().min(2).optional()
+  tenantId: z.string().min(2).optional(),
+  confirmPromotionText: z.string().optional()
 });
 
 function parseTenantRoleOrThrow(role: string): TenantRole {
@@ -51,6 +54,16 @@ function filterMemberships(
     if (!q) return true;
     return [membership.email, membership.uid].join(" ").toLowerCase().includes(q);
   });
+}
+
+function assertAssignmentAllowed(contextRole: string, targetRole: TenantRole) {
+  if (contextRole === "tenant_manager" && targetRole === "tenant_admin") {
+    throw new ApiError(403, "El rol Gestor Empresa no puede asignar Administrador Empresa.");
+  }
+}
+
+function countActiveTenantAdmins(memberships: TenantUserMembership[]) {
+  return memberships.filter((membership) => membership.status === "active" && membership.role === "tenant_admin").length;
 }
 
 export async function GET(req: NextRequest) {
@@ -106,15 +119,36 @@ export async function PATCH(req: NextRequest) {
     const context = await getTenantContext(req, "admin_users", "write");
     const parsed = updateUserSchema.parse(await req.json());
     const role = parseTenantRoleOrThrow(parsed.role);
+    assertAssignmentAllowed(context.role, role);
 
     if (!isPlatformAdmin(context) && parsed.tenantId && parsed.tenantId !== context.tenantId) {
       throw new ApiError(403, "No puedes cambiar el tenant desde esta pantalla.");
+    }
+
+    if (parsed.uid === context.uid) {
+      throw new ApiError(403, "No puedes cambiar tu propio rol.");
     }
 
     const targetTenantId = resolveTargetTenantId(context, parsed.tenantId || null);
     const existing = await getTenantMembership(targetTenantId, parsed.uid);
     if (!existing) {
       throw new ApiError(404, "Usuario no encontrado en este tenant.");
+    }
+
+    if (existing.role === "viewer" && role === "tenant_admin") {
+      if (parsed.confirmPromotionText !== TENANT_ADMIN_PROMOTION_CONFIRM_TEXT) {
+        throw new ApiError(
+          400,
+          `Confirmacion requerida para promocion sensible. Escribe: ${TENANT_ADMIN_PROMOTION_CONFIRM_TEXT}`
+        );
+      }
+    }
+
+    if (existing.role === "tenant_admin" && role !== "tenant_admin" && existing.status === "active") {
+      const memberships = await listTenantMemberships(targetTenantId);
+      if (countActiveTenantAdmins(memberships) <= 1) {
+        throw new ApiError(409, "No puedes degradar al ultimo Administrador Empresa activo del tenant.");
+      }
     }
 
     const membership = await upsertTenantMembership({

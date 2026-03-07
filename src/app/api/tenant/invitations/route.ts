@@ -41,6 +41,12 @@ function parseTenantRole(role: string): TenantRole {
   return role as TenantRole;
 }
 
+function assertInvitationRoleAllowed(contextRole: string, targetRole: TenantRole) {
+  if (contextRole === "tenant_manager" && targetRole === "tenant_admin") {
+    throw new ApiError(403, "El rol Gestor Empresa no puede invitar Administrador Empresa.");
+  }
+}
+
 function resolveTargetTenantId(
   context: Awaited<ReturnType<typeof getTenantContext>>,
   requestedTenantId: string | null | undefined
@@ -78,6 +84,7 @@ export async function POST(req: NextRequest) {
     const context = await getTenantContext(req, "admin_users", "write");
     const parsed = createInvitationSchema.parse(await req.json());
     const role = parseTenantRole(parsed.role);
+    assertInvitationRoleAllowed(context.role, role);
     const tenantId = resolveTargetTenantId(context, parsed.tenantId || null);
     const email = parsed.email.toLowerCase();
     const tenant = await getTenantById(tenantId);

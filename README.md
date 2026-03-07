@@ -85,6 +85,13 @@ Roles (custom claims):
 - `hr`
 - `viewer`
 
+Guardrails de roles (tenant):
+
+- `tenant_manager` no puede asignar/invitar `tenant_admin`.
+- Ningun usuario puede cambiar su propio rol.
+- No se puede degradar al ultimo `tenant_admin` activo del tenant.
+- Promocion `viewer -> tenant_admin` requiere confirmacion fuerte.
+
 ## Flujos SaaS (como se usa)
 
 ### 1) Usuario nuevo (sin empresa)

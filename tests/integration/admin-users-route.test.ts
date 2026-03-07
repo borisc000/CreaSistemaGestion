@@ -30,7 +30,7 @@ import { syncCustomClaimsForMembership } from "@/server/tenancy/service";
 
 describe("/api/admin/users route", () => {
   afterEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it("lists tenant users", async () => {
@@ -131,5 +131,147 @@ describe("/api/admin/users route", () => {
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(vi.mocked(syncCustomClaimsForMembership)).toHaveBeenCalled();
+  });
+
+  it("blocks tenant manager from promoting to tenant admin", async () => {
+    vi.mocked(getTenantContext).mockResolvedValue({
+      tenantId: "tenant-a",
+      uid: "caller-2",
+      role: "tenant_manager",
+      email: "manager@acme.com"
+    });
+
+    const req = new NextRequest("http://localhost/api/admin/users", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        uid: "u-1",
+        role: "tenant_admin"
+      })
+    });
+
+    const response = await PATCH(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("no puede asignar");
+  });
+
+  it("blocks self role change", async () => {
+    vi.mocked(getTenantContext).mockResolvedValue({
+      tenantId: "tenant-a",
+      uid: "caller-1",
+      role: "tenant_admin",
+      email: "owner@acme.com"
+    });
+
+    const req = new NextRequest("http://localhost/api/admin/users", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        uid: "caller-1",
+        role: "hr"
+      })
+    });
+
+    const response = await PATCH(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("propio rol");
+  });
+
+  it("requires strong confirmation for viewer to tenant admin promotion", async () => {
+    vi.mocked(getTenantContext).mockResolvedValue({
+      tenantId: "tenant-a",
+      uid: "caller-1",
+      role: "tenant_admin",
+      email: "owner@acme.com"
+    });
+    vi.mocked(getTenantMembership).mockResolvedValue({
+      id: "tenant-a_u-9",
+      tenantId: "tenant-a",
+      uid: "u-9",
+      email: "user@acme.com",
+      role: "viewer",
+      status: "active",
+      invitedByUid: null,
+      acceptedAt: "2026-03-06T00:00:00.000Z",
+      createdAt: "2026-03-06T00:00:00.000Z",
+      updatedAt: "2026-03-06T00:00:00.000Z"
+    } as never);
+
+    const req = new NextRequest("http://localhost/api/admin/users", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        uid: "u-9",
+        role: "tenant_admin"
+      })
+    });
+
+    const response = await PATCH(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain("Confirmacion requerida");
+  });
+
+  it("blocks demotion of last active tenant admin", async () => {
+    vi.mocked(getTenantContext).mockResolvedValue({
+      tenantId: "tenant-a",
+      uid: "platform-1",
+      role: "platform_admin",
+      email: "platform@acme.com"
+    });
+    vi.mocked(getTenantMembership).mockResolvedValue({
+      id: "tenant-a_u-1",
+      tenantId: "tenant-a",
+      uid: "u-1",
+      email: "admin@acme.com",
+      role: "tenant_admin",
+      status: "active",
+      invitedByUid: null,
+      acceptedAt: "2026-03-06T00:00:00.000Z",
+      createdAt: "2026-03-06T00:00:00.000Z",
+      updatedAt: "2026-03-06T00:00:00.000Z"
+    } as never);
+    vi.mocked(listTenantMemberships).mockResolvedValue([
+      {
+        id: "tenant-a_u-1",
+        tenantId: "tenant-a",
+        uid: "u-1",
+        email: "admin@acme.com",
+        role: "tenant_admin",
+        status: "active",
+        invitedByUid: null,
+        acceptedAt: "2026-03-06T00:00:00.000Z",
+        createdAt: "2026-03-06T00:00:00.000Z",
+        updatedAt: "2026-03-06T00:00:00.000Z"
+      }
+    ] as never);
+
+    const req = new NextRequest("http://localhost/api/admin/users", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        uid: "u-1",
+        role: "hr"
+      })
+    });
+
+    const response = await PATCH(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toContain("ultimo Administrador Empresa");
   });
 });
