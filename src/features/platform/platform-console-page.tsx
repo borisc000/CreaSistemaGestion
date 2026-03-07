@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { TENANT_MEMBER_ROLES, type TenantRole } from "@/lib/auth/roles";
+import { TENANT_MEMBER_ROLES, getTenantRoleLabel, type TenantRole } from "@/lib/auth/roles";
 import { useApiClient } from "@/lib/api/use-api-client";
 import { InlineError, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
 import type { BillingPlanCode, TenantDomain, TenantRecord } from "@/types/domain";
@@ -123,7 +123,7 @@ export function PlatformConsolePage() {
             <select value={ownerRole} onChange={(event) => setOwnerRole(event.target.value as TenantRole)}>
               {TENANT_MEMBER_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {getTenantRoleLabel(role)}
                 </option>
               ))}
             </select>
@@ -175,7 +175,7 @@ export function PlatformConsolePage() {
             <select value={assignRole} onChange={(event) => setAssignRole(event.target.value as TenantRole)}>
               {TENANT_MEMBER_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {getTenantRoleLabel(role)}
                 </option>
               ))}
             </select>

@@ -1,4 +1,5 @@
 import { getEnabledModules, type RegisteredModule } from "@/modules/registry";
+import { USER_ROLE_LABELS } from "@/lib/auth/roles";
 import type { ModuleKey, UserRole } from "@/types/domain";
 
 export type NavItem = {
@@ -77,13 +78,4 @@ export function buildNavItemsFromModules(moduleDefinitions: readonly RegisteredM
 
 export const NAV_ITEMS: NavItem[] = buildNavItemsFromModules();
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  platform_admin: "Platform Admin",
-  tenant_admin: "Administrador",
-  tenant_manager: "Jefe Operaciones",
-  tender_lead: "Lider Licitaciones",
-  contract_manager: "Contract Manager",
-  finance: "Analista Finanzas",
-  hr: "Lider RRHH",
-  viewer: "Solo lectura"
-};
+export const ROLE_LABELS: Record<UserRole, string> = USER_ROLE_LABELS;

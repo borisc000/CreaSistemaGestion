@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { getTenantRoleLabel } from "@/lib/auth/roles";
 import { useAuth } from "@/features/auth/auth-provider";
 import { NAV_ITEMS, ROLE_LABELS } from "@/features/layout/nav-config";
 import { resolveModuleKeyFromPath } from "@/modules/registry";
@@ -155,7 +156,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   {memberships.map((membership) => (
                     <option key={membership.tenantId} value={membership.tenantId}>
-                      {membership.tenantName} ({membership.membershipRole})
+                      {membership.tenantName} ({getTenantRoleLabel(membership.membershipRole)})
                     </option>
                   ))}
                 </select>

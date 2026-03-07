@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TENANT_MEMBER_ROLES, type TenantRole } from "@/lib/auth/roles";
+import { TENANT_MEMBER_ROLES, getTenantRoleLabel, type TenantRole } from "@/lib/auth/roles";
 import { useApiClient } from "@/lib/api/use-api-client";
 import type { AdminUserSummary, TenantInvitation } from "@/types/domain";
 import {
@@ -145,7 +145,7 @@ export function UsersAdminPage() {
               <option value="all">Todos</option>
               {TENANT_MEMBER_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {getTenantRoleLabel(role)}
                 </option>
               ))}
             </select>
@@ -204,7 +204,7 @@ export function UsersAdminPage() {
                         >
                           {TENANT_MEMBER_ROLES.map((role) => (
                             <option key={role} value={role}>
-                              {role}
+                              {getTenantRoleLabel(role)}
                             </option>
                           ))}
                         </select>
@@ -255,7 +255,7 @@ export function UsersAdminPage() {
                 {invitations.map((invitation) => (
                   <tr key={invitation.id}>
                     <td>{invitation.email}</td>
-                    <td>{invitation.role}</td>
+                    <td>{getTenantRoleLabel(invitation.role)}</td>
                     <td>{invitation.status}</td>
                     <td>{invitation.expiresAt}</td>
                     <td style={{ display: "flex", gap: 8 }}>
@@ -338,7 +338,7 @@ export function UsersAdminPage() {
           <>
             <p>
               Usuario <strong>{pendingChange.email || pendingChange.uid}</strong> pasara a rol{" "}
-              <strong>{pendingChange.role}</strong>.
+              <strong>{getTenantRoleLabel(pendingChange.role)}</strong>.
             </p>
             <div className="toolbar">
               <button className="btn-secondary" type="button" onClick={() => setPendingChange(null)} disabled={saving}>
@@ -437,7 +437,7 @@ export function UsersAdminPage() {
             >
               {TENANT_MEMBER_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {getTenantRoleLabel(role)}
                 </option>
               ))}
             </select>
