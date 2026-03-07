@@ -212,21 +212,38 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
+    const nextStatus = parsed.status || tenant.status;
+    const enabledModules = parseEnabledModules(parsed.enabledModules);
+    const planChanged =
+      Boolean(parsed.planCode) || typeof parsed.maxUsers === "number" || Boolean(enabledModules);
+
+    if (!planChanged) {
+      await patchTenant(parsed.id, { status: nextStatus });
+      return jsonOk({ ok: true });
+    }
+
     const nextPlanCode = parsed.planCode || tenant.plan.code;
-    const nextPlan = buildTenantPlan(nextPlanCode as BillingPlanCode);
+    const nextPlan =
+      parsed.planCode && parsed.planCode !== tenant.plan.code
+        ? buildTenantPlan(nextPlanCode as BillingPlanCode)
+        : {
+            ...tenant.plan,
+            limits: {
+              ...tenant.plan.limits,
+              enabledModules: [...tenant.plan.limits.enabledModules]
+            }
+          };
+
     if (typeof parsed.maxUsers === "number") {
       nextPlan.limits.maxUsers = parsed.maxUsers;
     }
 
-    const enabledModules = parseEnabledModules(parsed.enabledModules);
     if (enabledModules) {
       nextPlan.limits.enabledModules = enabledModules;
-    } else {
-      nextPlan.limits.enabledModules = tenant.plan.limits.enabledModules;
     }
 
     await patchTenant(parsed.id, {
-      status: parsed.status || tenant.status,
+      status: nextStatus,
       plan: {
         ...nextPlan,
         status: tenant.plan.status

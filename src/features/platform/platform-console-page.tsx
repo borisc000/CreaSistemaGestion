@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TENANT_MEMBER_ROLES, getTenantRoleLabel, type TenantRole } from "@/lib/auth/roles";
 import { useApiClient } from "@/lib/api/use-api-client";
 import { InlineError, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
-import type { BillingPlanCode, TenantDomain, TenantRecord } from "@/types/domain";
+import { MODULE_KEYS, getModuleDefinition } from "@/modules/registry";
+import type { BillingPlanCode, ModuleKey, TenantDomain, TenantRecord } from "@/types/domain";
 
 type TenantsResponse = { data: TenantRecord[] };
 type DomainsResponse = { data: TenantDomain[] };
+
+const MANAGED_TENANT_MODULES = MODULE_KEYS.filter(
+  (moduleKey): moduleKey is ModuleKey => moduleKey !== "platform" && moduleKey !== "dashboard"
+);
+const MODULE_OPTIONS = MANAGED_TENANT_MODULES.map((moduleKey) => ({
+  moduleKey,
+  label: getModuleDefinition(moduleKey).label
+}));
 
 export function PlatformConsolePage() {
   const api = useApiClient();
@@ -31,6 +40,8 @@ export function PlatformConsolePage() {
   const [domainTenantId, setDomainTenantId] = useState("");
   const [domainHost, setDomainHost] = useState("");
   const [domainType, setDomainType] = useState<"custom" | "wildcard">("custom");
+  const [modulesTenantId, setModulesTenantId] = useState("");
+  const [enabledModulesDraft, setEnabledModulesDraft] = useState<ModuleKey[]>([]);
   const [saving, setSaving] = useState(false);
 
   const loadTenants = useCallback(async () => {
@@ -61,6 +72,39 @@ export function PlatformConsolePage() {
     void loadTenants();
     void loadDomains();
   }, [loadTenants, loadDomains]);
+
+  useEffect(() => {
+    if (!tenants.length) {
+      setModulesTenantId("");
+      setEnabledModulesDraft([]);
+      return;
+    }
+    setModulesTenantId((current) => {
+      if (current && tenants.some((tenant) => tenant.id === current)) {
+        return current;
+      }
+      return tenants[0].id;
+    });
+  }, [tenants]);
+
+  const selectedTenantForModules = useMemo(
+    () => tenants.find((tenant) => tenant.id === modulesTenantId) || null,
+    [modulesTenantId, tenants]
+  );
+
+  useEffect(() => {
+    if (!selectedTenantForModules) {
+      setEnabledModulesDraft([]);
+      return;
+    }
+    setEnabledModulesDraft(
+      selectedTenantForModules.plan.limits.enabledModules.filter((moduleKey) =>
+        MANAGED_TENANT_MODULES.includes(moduleKey)
+      )
+    );
+  }, [selectedTenantForModules]);
+
+  const enabledModuleSet = useMemo(() => new Set(enabledModulesDraft), [enabledModulesDraft]);
 
   return (
     <ModulePage
@@ -188,6 +232,98 @@ export function PlatformConsolePage() {
         </form>
       </Panel>
 
+      <Panel title="Acceso a modulos por empresa">
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!modulesTenantId) {
+              setToast({ message: "Selecciona una empresa para configurar modulos.", tone: "info" });
+              return;
+            }
+
+            setSaving(true);
+            void api
+              .patch<{ ok: boolean }>("/api/platform/tenants", {
+                id: modulesTenantId,
+                enabledModules: ["dashboard", ...enabledModulesDraft]
+              })
+              .then(() => {
+                setToast({ message: `Modulos actualizados para ${modulesTenantId}.`, tone: "success" });
+                return loadTenants();
+              })
+              .catch((err) => {
+                setToast({
+                  message: err instanceof Error ? err.message : "No se pudieron actualizar modulos.",
+                  tone: "error"
+                });
+              })
+              .finally(() => setSaving(false));
+          }}
+        >
+          <label>
+            Tenant
+            <select
+              value={modulesTenantId}
+              onChange={(event) => setModulesTenantId(event.target.value)}
+              required
+              disabled={loadingTenants}
+            >
+              <option value="">Selecciona empresa</option>
+              {tenants.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>
+                  {tenant.name} ({tenant.id})
+                </option>
+              ))}
+            </select>
+          </label>
+          <div style={{ gridColumn: "1 / -1", display: "grid", gap: 8 }}>
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>
+              Selecciona los modulos operativos que esta empresa puede usar. Esta vista es exclusiva de platform admin.
+            </p>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+              {MODULE_OPTIONS.map((option) => {
+                const checked = enabledModuleSet.has(option.moduleKey);
+                return (
+                  <label
+                    key={option.moduleKey}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      border: "1px solid var(--line)",
+                      borderRadius: 10,
+                      padding: "8px 10px",
+                      background: checked ? "rgba(25, 91, 154, 0.08)" : "#fff"
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        const nextChecked = event.target.checked;
+                        setEnabledModulesDraft((current) => {
+                          if (nextChecked) {
+                            return [...new Set([...current, option.moduleKey])];
+                          }
+                          return current.filter((moduleKey) => moduleKey !== option.moduleKey);
+                        });
+                      }}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <div className="form-actions">
+            <button className="btn-primary" type="submit" disabled={saving || !modulesTenantId}>
+              Guardar modulos
+            </button>
+          </div>
+        </form>
+      </Panel>
+
       <Panel title="Tenants">
         {loadingTenants ? <SkeletonRows rows={4} /> : null}
         {!loadingTenants ? (
@@ -200,6 +336,7 @@ export function PlatformConsolePage() {
                   <th>Estado</th>
                   <th>Plan</th>
                   <th>Max users</th>
+                  <th>Modulos</th>
                   <th>Accion</th>
                 </tr>
               </thead>
@@ -211,6 +348,11 @@ export function PlatformConsolePage() {
                     <td>{tenant.status}</td>
                     <td>{tenant.plan.code}</td>
                     <td>{tenant.plan.limits.maxUsers}</td>
+                    <td>
+                      {tenant.plan.limits.enabledModules.filter((moduleKey) => MANAGED_TENANT_MODULES.includes(moduleKey))
+                        .length}
+                      /{MANAGED_TENANT_MODULES.length}
+                    </td>
                     <td>
                       <div className="table-actions">
                         <button

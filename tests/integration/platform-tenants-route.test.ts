@@ -29,7 +29,7 @@ vi.mock("@/lib/firebase/admin", () => ({
 import { PATCH } from "@/app/api/platform/tenants/route";
 import { adminAuth } from "@/lib/firebase/admin";
 import { getTenantContext } from "@/server/auth/request-context";
-import { deleteTenantHard, getTenantById, upsertTenantMembership } from "@/server/tenancy/repository";
+import { deleteTenantHard, getTenantById, patchTenant, upsertTenantMembership } from "@/server/tenancy/repository";
 import { syncCustomClaimsForMembership } from "@/server/tenancy/service";
 
 describe("/api/platform/tenants route", () => {
@@ -194,5 +194,60 @@ describe("/api/platform/tenants route", () => {
 
     expect(response.status).toBe(409);
     expect(body.error).toContain("primero debes suspender");
+  });
+
+  it("updates enabled modules without overriding existing maxUsers", async () => {
+    vi.mocked(getTenantContext).mockResolvedValue({
+      tenantId: "crea-default",
+      uid: "platform-1",
+      role: "platform_admin",
+      email: "platform@acme.com",
+      platformRole: "platform_admin"
+    } as never);
+    vi.mocked(getTenantById).mockResolvedValue({
+      id: "wolotec",
+      name: "Wolotec",
+      slug: "wolotec",
+      status: "active",
+      ownerUserId: null,
+      createdAt: "2026-03-07T00:00:00.000Z",
+      updatedAt: "2026-03-07T00:00:00.000Z",
+      plan: {
+        code: "pro",
+        status: "active",
+        limits: {
+          maxUsers: 77,
+          enabledModules: ["dashboard", "contracts", "hr_people"]
+        }
+      }
+    } as never);
+
+    const req = new NextRequest("http://localhost/api/platform/tenants", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "wolotec",
+        enabledModules: ["dashboard", "contracts"]
+      })
+    });
+
+    const response = await PATCH(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(vi.mocked(patchTenant)).toHaveBeenCalledWith(
+      "wolotec",
+      expect.objectContaining({
+        status: "active",
+        plan: expect.objectContaining({
+          code: "pro",
+          limits: expect.objectContaining({
+            maxUsers: 77,
+            enabledModules: ["dashboard", "contracts"]
+          })
+        })
+      })
+    );
   });
 });
