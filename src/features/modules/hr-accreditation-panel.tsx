@@ -72,6 +72,17 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isDateRangeActive(startDate: string, endDate: string | null): boolean {
+  const now = new Date();
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return false;
+  if (start.getTime() > now.getTime()) return false;
+  if (!endDate) return true;
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return true;
+  return end.getTime() >= now.getTime();
+}
+
 function buildTemplateDraft(template: AccreditationTemplate): TemplateDraft {
   return {
     name: template.name,
@@ -124,6 +135,7 @@ export function HrAccreditationPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
   const [pendingAssignmentId, setPendingAssignmentId] = useState<string | null>(null);
+  const [creatingPrimaryAssignment, setCreatingPrimaryAssignment] = useState(false);
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
   const [pendingEvidenceDocumentId, setPendingEvidenceDocumentId] = useState<string | null>(null);
   const [isAssignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false);
@@ -139,9 +151,22 @@ export function HrAccreditationPanel({
     [peopleApi.items, selectedPersonId]
   );
 
+  const selectedPersonLabel = useMemo(() => {
+    if (!selectedPerson) return "Sin persona seleccionada";
+    return `${selectedPerson.fullName} (${selectedPerson.idNumber})`;
+  }, [selectedPerson]);
+
   const activeAssignments = useMemo(
-    () => assignments.filter((assignment) => assignment.status === "active"),
+    () =>
+      assignments.filter(
+        (assignment) => assignment.status === "active" && isDateRangeActive(assignment.startDate, assignment.endDate)
+      ),
     [assignments]
+  );
+
+  const contractById = useMemo(
+    () => new Map(contractsApi.items.map((contract) => [contract.id, contract])),
+    [contractsApi.items]
   );
 
   const selectableContractIds = useMemo(() => {
@@ -159,6 +184,21 @@ export function HrAccreditationPanel({
     () => contractsApi.items.filter((contract) => selectableContractIds.includes(contract.id)),
     [contractsApi.items, selectableContractIds]
   );
+
+  const primaryContract = useMemo(() => {
+    if (!selectedPerson?.contractId) return null;
+    return contractById.get(selectedPerson.contractId) || null;
+  }, [contractById, selectedPerson?.contractId]);
+
+  const selectedContract = useMemo(() => {
+    if (!selectedContractId) return null;
+    return contractById.get(selectedContractId) || null;
+  }, [contractById, selectedContractId]);
+
+  const hasActiveAssignmentForPrimaryContract = useMemo(() => {
+    if (!selectedPerson?.contractId) return false;
+    return activeAssignments.some((assignment) => assignment.contractId === selectedPerson.contractId);
+  }, [activeAssignments, selectedPerson?.contractId]);
 
   const personDocuments = useMemo(
     () => documentsApi.items.filter((document) => document.personId === selectedPersonId),
@@ -192,7 +232,7 @@ export function HrAccreditationPanel({
           validIds.add(selectedPerson.contractId);
         }
         for (const assignment of response.data) {
-          if (assignment.status === "active") {
+          if (assignment.status === "active" && isDateRangeActive(assignment.startDate, assignment.endDate)) {
             validIds.add(assignment.contractId);
           }
         }
@@ -200,7 +240,9 @@ export function HrAccreditationPanel({
           if (current && validIds.has(current)) {
             return current;
           }
-          const firstFromAssignment = response.data.find((assignment) => assignment.status === "active");
+          const firstFromAssignment = response.data.find(
+            (assignment) => assignment.status === "active" && isDateRangeActive(assignment.startDate, assignment.endDate)
+          );
           return firstFromAssignment?.contractId || selectedPerson?.contractId || "";
         });
       } catch (err) {
@@ -254,13 +296,26 @@ export function HrAccreditationPanel({
     void loadMatrix(selectedPersonId, selectedContractId);
   }, [loadMatrix, selectedContractId, selectedPersonId]);
 
+  const openAssignmentDrawer = useCallback(() => {
+    if (!selectedPersonId) {
+      setToast({ message: "Selecciona una persona antes de crear una asignacion.", tone: "info" });
+      return;
+    }
+    setAssignmentForm((current) => ({
+      ...current,
+      contractId: current.contractId || selectedContractId || selectedPerson?.contractId || ""
+    }));
+    setAssignmentDrawerOpen(true);
+  }, [selectedContractId, selectedPerson?.contractId, selectedPersonId]);
+
   const createAssignment = useCallback(async (): Promise<boolean> => {
     if (!selectedPersonId || !assignmentForm.contractId) return false;
     setError(null);
     try {
+      const nextContractId = assignmentForm.contractId;
       await api.post("/api/hr/accreditation/assignments", {
         personId: selectedPersonId,
-        contractId: assignmentForm.contractId,
+        contractId: nextContractId,
         startDate: assignmentForm.startDate,
         endDate: assignmentForm.endDate || null,
         status: "active"
@@ -273,13 +328,39 @@ export function HrAccreditationPanel({
         endDate: ""
       }));
       await loadAssignments(selectedPersonId);
+      setSelectedContractId(nextContractId);
+      await loadMatrix(selectedPersonId, nextContractId);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear asignacion.");
       setToast({ message: "No se pudo crear asignacion.", tone: "error" });
       return false;
     }
-  }, [api, assignmentForm.contractId, assignmentForm.endDate, assignmentForm.startDate, loadAssignments, selectedPersonId]);
+  }, [api, assignmentForm.contractId, assignmentForm.endDate, assignmentForm.startDate, loadAssignments, loadMatrix, selectedPersonId]);
+
+  const createAssignmentFromPrimaryContract = useCallback(async () => {
+    if (!selectedPersonId || !selectedPerson?.contractId) return;
+    setCreatingPrimaryAssignment(true);
+    setError(null);
+    try {
+      await api.post("/api/hr/accreditation/assignments", {
+        personId: selectedPersonId,
+        contractId: selectedPerson.contractId,
+        startDate: selectedPerson.hireDate || todayIsoDate(),
+        endDate: null,
+        status: "active"
+      });
+      setToast({ message: "Contrato principal registrado como asignacion activa.", tone: "success" });
+      await loadAssignments(selectedPersonId);
+      setSelectedContractId(selectedPerson.contractId);
+      await loadMatrix(selectedPersonId, selectedPerson.contractId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo registrar el contrato principal.");
+      setToast({ message: "No se pudo registrar el contrato principal.", tone: "error" });
+    } finally {
+      setCreatingPrimaryAssignment(false);
+    }
+  }, [api, loadAssignments, loadMatrix, selectedPerson, selectedPersonId]);
 
   const closeAssignment = useCallback(
     async (assignmentId: string) => {
@@ -470,8 +551,22 @@ export function HrAccreditationPanel({
         <p>Gestiona asignaciones persona-contrato, plantillas y cumplimiento documental reutilizable.</p>
       </Panel>
 
-      <Panel title="Contexto de evaluacion">
+      <Panel title="Evaluacion de cumplimiento">
         <InlineError message={error || uploadError || peopleApi.error || contractsApi.error || documentsApi.error} />
+        <div className="detail-grid">
+          <div className="detail-item">
+            <strong>Persona evaluada</strong>
+            <p>{selectedPersonLabel}</p>
+          </div>
+          <div className="detail-item">
+            <strong>Contrato principal (ficha)</strong>
+            <p>{primaryContract?.name || "Sin contrato principal"}</p>
+          </div>
+          <div className="detail-item">
+            <strong>Regla</strong>
+            <p>Este contexto solo cambia la matriz de evaluacion, no crea asignaciones.</p>
+          </div>
+        </div>
         <div className="toolbar">
           {!fixedPersonId ? (
             <label>
@@ -487,7 +582,7 @@ export function HrAccreditationPanel({
             </label>
           ) : null}
           <label>
-            Contrato
+            Contrato a evaluar
             <select value={selectedContractId} onChange={(event) => setSelectedContractId(event.target.value)}>
               <option value="">Selecciona contrato</option>
               {contractOptions.map((contract) => (
@@ -511,18 +606,49 @@ export function HrAccreditationPanel({
               void documentsApi.reload();
             }}
           >
-            Refrescar
+            Actualizar datos
           </button>
         </div>
       </Panel>
 
-      <Panel title="Asignaciones persona-contrato">
+      <Panel title="Asignaciones operativas persona-contrato">
         {!selectedPersonId ? <EmptyState message="Selecciona una persona para gestionar asignaciones." /> : null}
         {selectedPersonId ? (
           <>
+            <div className="detail-grid">
+              <div className="detail-item">
+                <strong>Persona objetivo</strong>
+                <p>{selectedPersonLabel}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Contrato principal (ficha)</strong>
+                <p>{primaryContract?.name || "Sin contrato principal"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Asignaciones activas</strong>
+                <p>{activeAssignments.length}</p>
+              </div>
+            </div>
+
+            {selectedPerson?.contractId && !hasActiveAssignmentForPrimaryContract ? (
+              <div className="inline-note">
+                <p>El contrato principal existe en la ficha, pero aun no tiene asignacion activa registrada.</p>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={creatingPrimaryAssignment}
+                  onClick={() => void createAssignmentFromPrimaryContract()}
+                >
+                  {creatingPrimaryAssignment
+                    ? "Registrando..."
+                    : "Registrar contrato principal como asignacion activa"}
+                </button>
+              </div>
+            ) : null}
+
             <ModuleActionBar>
-              <button className="btn-primary" type="button" onClick={() => setAssignmentDrawerOpen(true)}>
-                Agregar asignacion
+              <button className="btn-primary" type="button" disabled={!selectedPersonId} onClick={openAssignmentDrawer}>
+                {selectedPerson ? `Agregar asignacion para ${selectedPerson.fullName}` : "Agregar asignacion"}
               </button>
             </ModuleActionBar>
 
@@ -537,14 +663,21 @@ export function HrAccreditationPanel({
                       <th>Inicio</th>
                       <th>Fin</th>
                       <th>Estado</th>
+                      <th>Vinculo</th>
                       <th>Accion</th>
                     </tr>
                   </thead>
                   <tbody>
                     {assignments.length === 0 ? (
                       <tr className="table-empty-row">
-                        <td colSpan={5}>
-                          <EmptyState message="Esta persona aun no tiene asignaciones registradas." />
+                        <td colSpan={6}>
+                          <EmptyState
+                            message={
+                              selectedPerson?.contractId
+                                ? "No hay asignaciones activas registradas. La persona mantiene solo contrato principal en ficha."
+                                : "Esta persona aun no tiene contratos asignados."
+                            }
+                          />
                         </td>
                       </tr>
                     ) : null}
@@ -556,6 +689,11 @@ export function HrAccreditationPanel({
                           <td>{formatDate(assignment.startDate)}</td>
                           <td>{formatDate(assignment.endDate)}</td>
                           <td>{assignment.status}</td>
+                          <td>
+                            {selectedPerson?.contractId === assignment.contractId
+                              ? "Principal + asignacion"
+                              : "Asignacion adicional"}
+                          </td>
                           <td>
                             <button
                               className="btn-secondary"
@@ -586,6 +724,18 @@ export function HrAccreditationPanel({
         {!loadingMatrix && matrix ? (
           <>
             <div className="detail-grid">
+              <div className="detail-item">
+                <strong>Persona evaluada</strong>
+                <p>{matrix.person.fullName}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Contrato evaluado</strong>
+                <p>{selectedContract?.name || matrix.contract.name}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Vinculo persona-contrato</strong>
+                <p>{matrix.isAssignedToContract ? "Vinculada" : "No vinculada"}</p>
+              </div>
               <div className="detail-item">
                 <strong>Total requisitos</strong>
                 <p>{matrix.summary.total}</p>
@@ -834,8 +984,8 @@ export function HrAccreditationPanel({
 
       <FormDrawer
         isOpen={isAssignmentDrawerOpen}
-        title="Agregar asignacion persona-contrato"
-        description="Permite multi-contrato con fechas de vigencia."
+        title={selectedPerson ? `Agregar asignacion para ${selectedPerson.fullName}` : "Agregar asignacion persona-contrato"}
+        description="La asignacion se crea para la persona objetivo mostrada abajo."
         onClose={() => setAssignmentDrawerOpen(false)}
       >
         <form
@@ -849,6 +999,14 @@ export function HrAccreditationPanel({
             });
           }}
         >
+          <label>
+            Persona objetivo
+            <input value={selectedPersonLabel} readOnly />
+          </label>
+          <label>
+            Contrato principal (ficha)
+            <input value={primaryContract?.name || "Sin contrato principal"} readOnly />
+          </label>
           <label>
             Contrato
             <select

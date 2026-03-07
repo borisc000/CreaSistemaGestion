@@ -23,6 +23,7 @@ import { firebaseStorage } from "@/lib/firebase/client";
 import type {
   Contract,
   EmploymentStatus,
+  PersonContractAssignment,
   PersonDocument,
   PersonDocumentStatus,
   PersonRecord
@@ -41,10 +42,22 @@ function normalizeFileName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function isDateRangeActive(startDate: string, endDate: string | null): boolean {
+  const now = new Date();
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return false;
+  if (start.getTime() > now.getTime()) return false;
+  if (!endDate) return true;
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return true;
+  return end.getTime() >= now.getTime();
+}
+
 export function HrPeoplePage() {
   const peopleApi = useCrudModule<PersonRecord>("/api/hr/people");
   const documentsApi = useCrudModule<PersonDocument>("/api/hr/documents");
   const contractsApi = useCrudModule<Contract>("/api/contracts");
+  const assignmentsApi = useCrudModule<PersonContractAssignment>("/api/hr/accreditation/assignments?status=active");
 
   const [form, setForm] = useState({
     fullName: "",
@@ -88,6 +101,17 @@ export function HrPeoplePage() {
       }).length
     };
   }, [documentsApi.items, peopleApi.items]);
+
+  const activeAssignmentsByPerson = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const assignment of assignmentsApi.items) {
+      if (assignment.status !== "active" || !isDateRangeActive(assignment.startDate, assignment.endDate)) {
+        continue;
+      }
+      map.set(assignment.personId, (map.get(assignment.personId) || 0) + 1);
+    }
+    return map;
+  }, [assignmentsApi.items]);
 
   async function handleDocumentUpload(): Promise<boolean> {
     if (!documentForm.personId || !file) return false;
@@ -170,7 +194,7 @@ export function HrPeoplePage() {
   return (
     <ModulePage
       title="RRHH - Gestion de personas"
-      description="Ficha de colaboradores por contrato y control documental con Storage + metadata Firestore."
+      description="Gestion de colaboradores con contrato principal de ficha, asignaciones multi-contrato y control documental."
     >
       <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <KpiGrid
@@ -204,7 +228,7 @@ export function HrPeoplePage() {
           Acreditacion
         </button>
       </div>
-      <InlineError message={uploadError || peopleApi.error || documentsApi.error || contractsApi.error} />
+      <InlineError message={uploadError || peopleApi.error || documentsApi.error || contractsApi.error || assignmentsApi.error} />
 
       {activeTab === "people" ? (
       <ModuleActionBar>
@@ -270,7 +294,7 @@ export function HrPeoplePage() {
             />
           </label>
           <label>
-            Contrato
+            Contrato principal (ficha)
             <select
               value={form.contractId}
               onChange={(event) => setForm((prev) => ({ ...prev, contractId: event.target.value }))}
@@ -282,6 +306,9 @@ export function HrPeoplePage() {
                 </option>
               ))}
             </select>
+            <small>
+              Referencia inicial. Las asignaciones operativas adicionales se gestionan en la pestaña Acreditacion.
+            </small>
           </label>
           <label>
             Fecha ingreso
@@ -403,7 +430,8 @@ export function HrPeoplePage() {
                 <th>Persona</th>
                 <th>RUT / ID</th>
                 <th>Cargo</th>
-                <th>Contrato</th>
+                <th>Contrato principal</th>
+                <th>Asignaciones activas</th>
                 <th>Ingreso</th>
                 <th>Estado</th>
                 <th>Cumplimiento</th>
@@ -413,13 +441,14 @@ export function HrPeoplePage() {
             <tbody>
               {peopleApi.items.length === 0 ? (
                 <tr className="table-empty-row">
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <EmptyState message="Aun no hay personas cargadas en RRHH." />
                   </td>
                 </tr>
               ) : null}
               {peopleApi.items.map((person) => {
                 const contract = contractsApi.items.find((item) => item.id === person.contractId);
+                const activeAssignments = activeAssignmentsByPerson.get(person.id) || 0;
                 const docs = documentsApi.items.filter((item) => item.personId === person.id);
                 const completed = REQUIRED_PERSON_DOCUMENT_TYPES.filter((type) =>
                   docs.some((item) => item.docType === type && item.status !== "expired")
@@ -431,6 +460,7 @@ export function HrPeoplePage() {
                     <td>{person.idNumber}</td>
                     <td>{person.position}</td>
                     <td>{contract?.name || "Sin contrato"}</td>
+                    <td>{activeAssignments}</td>
                     <td>{formatDate(person.hireDate)}</td>
                     <td>{person.employmentStatus}</td>
                     <td>{completed}/{REQUIRED_PERSON_DOCUMENT_TYPES.length}</td>

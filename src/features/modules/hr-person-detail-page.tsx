@@ -203,6 +203,15 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
     [data?.documents]
   );
 
+  const activeAssignmentContracts = useMemo(() => {
+    if (!data) return [];
+    const contractById = new Map(contractsApi.items.map((contract) => [contract.id, contract]));
+    return data.accreditation.activeAssignments.map((assignment) => {
+      const contract = contractById.get(assignment.contractId);
+      return contract?.name || assignment.contractId;
+    });
+  }, [contractsApi.items, data]);
+
   return (
     <ModulePage
       title={data ? `Ficha 360 - ${data.person.fullName}` : "Ficha 360 de persona"}
@@ -309,7 +318,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                   />
                 </label>
                 <label>
-                  Contrato
+                  Contrato principal (ficha)
                   <select
                     value={form.contractId}
                     onChange={(event) => setForm((current) => (current ? { ...current, contractId: event.target.value } : current))}
@@ -379,8 +388,12 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                 <p>{data.person.rutNormalized || "No aplica (pendiente)"}</p>
               </div>
               <div className="detail-item">
-                <strong>Contrato actual</strong>
+                <strong>Contrato principal (ficha)</strong>
                 <p>{data.contract?.name || "Sin contrato asociado"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Asignaciones activas</strong>
+                <p>{activeAssignmentContracts.length ? activeAssignmentContracts.join(", ") : "Sin asignaciones activas"}</p>
               </div>
             </div>
           </Panel>

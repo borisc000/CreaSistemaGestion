@@ -404,6 +404,12 @@ p {
   color: var(--text-soft);
 }
 
+.form-grid label small {
+  color: #5c7187;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
 input,
 select,
 textarea {
@@ -479,6 +485,24 @@ textarea:focus-visible {
 .inline-error {
   color: var(--danger);
   font-weight: 700;
+}
+
+.inline-note {
+  border: 1px dashed #c7d6e7;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inline-note p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.82rem;
 }
 
 .table-wrap {
