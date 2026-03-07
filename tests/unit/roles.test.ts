@@ -17,14 +17,14 @@ describe("hasModuleAccess", () => {
     expect(hasModuleAccess("tenant_admin", "audit")).toBe(true);
   });
 
-  it("allows all operational modules for tenant manager but no admin modules", () => {
+  it("allows all operational modules for tenant manager plus user admin (without global admin)", () => {
     expect(hasModuleAccess("tenant_manager", "tenders")).toBe(true);
     expect(hasModuleAccess("tenant_manager", "contracts")).toBe(true);
     expect(hasModuleAccess("tenant_manager", "operations")).toBe(true);
     expect(hasModuleAccess("tenant_manager", "finance")).toBe(true);
     expect(hasModuleAccess("tenant_manager", "hr_recruiting")).toBe(true);
     expect(hasModuleAccess("tenant_manager", "hr_people")).toBe(true);
-    expect(hasModuleAccess("tenant_manager", "admin_users")).toBe(false);
+    expect(hasModuleAccess("tenant_manager", "admin_users")).toBe(true);
     expect(hasModuleAccess("tenant_manager", "audit")).toBe(false);
     expect(hasModuleAccess("tenant_manager", "platform")).toBe(false);
   });

@@ -78,7 +78,7 @@ Roles (custom claims):
 
 - `platform_admin`
 - `tenant_admin`
-- `tenant_manager` (todos los modulos operativos, sin admin/auditoria/plataforma)
+- `tenant_manager` (todos los modulos operativos + gestion de usuarios del tenant, sin auditoria/plataforma)
 - `tender_lead`
 - `contract_manager`
 - `finance`

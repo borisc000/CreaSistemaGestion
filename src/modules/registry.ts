@@ -320,7 +320,10 @@ const MODULE_REGISTRY_INTERNAL = {
     apiBase: "/api/tenant/users",
     collectionKeys: [],
     enabled: true,
-    accessPolicy: buildAccessPolicy(["platform_admin", "tenant_admin"], ["platform_admin", "tenant_admin"]),
+    accessPolicy: buildAccessPolicy(
+      ["platform_admin", "tenant_admin", "tenant_manager"],
+      ["platform_admin", "tenant_admin", "tenant_manager"]
+    ),
     navigation: {
       label: "Usuarios y roles",
       href: "/administracion/usuarios",
@@ -328,7 +331,7 @@ const MODULE_REGISTRY_INTERNAL = {
       groupLabel: "Administracion",
       groupHref: "/administracion",
       groupOrder: 90,
-      visibleForRoles: ["platform_admin", "tenant_admin"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager"]
     }
   },
   audit: {
