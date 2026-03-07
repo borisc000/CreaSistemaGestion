@@ -78,6 +78,7 @@ Roles (custom claims):
 
 - `platform_admin`
 - `tenant_admin`
+- `tenant_manager` (todos los modulos operativos, sin admin/auditoria/plataforma)
 - `tender_lead`
 - `contract_manager`
 - `finance`
@@ -103,6 +104,13 @@ Roles (custom claims):
 
 Importante: para pertenecer a una empresa existente, **debe ser invitado**.
 No queda asociado automaticamente solo por entrar con Google.
+
+### 2.1) Asignacion directa desde consola Platform
+
+1. Entrar como `platform_admin` a `/platform`.
+2. Usar `Asignar usuario a empresa` (tenantId + email + rol).
+3. Si el correo ya existe en Firebase Auth, queda activo en ese tenant sin invitacion manual.
+4. Si no existe en Auth, ese correo debe iniciar sesion una vez (o usar invitacion).
 
 ### 3) Un mismo usuario en mas de una empresa
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { TENANT_MEMBER_ROLES, type TenantRole } from "@/lib/auth/roles";
 import { useApiClient } from "@/lib/api/use-api-client";
 import { InlineError, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
 import type { BillingPlanCode, TenantDomain, TenantRecord } from "@/types/domain";
@@ -21,6 +22,11 @@ export function PlatformConsolePage() {
   const [slug, setSlug] = useState("");
   const [planCode, setPlanCode] = useState<BillingPlanCode>("starter");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerRole, setOwnerRole] = useState<TenantRole>("tenant_admin");
+
+  const [assignTenantId, setAssignTenantId] = useState("");
+  const [assignEmail, setAssignEmail] = useState("");
+  const [assignRole, setAssignRole] = useState<TenantRole>("tenant_manager");
 
   const [domainTenantId, setDomainTenantId] = useState("");
   const [domainHost, setDomainHost] = useState("");
@@ -75,13 +81,15 @@ export function PlatformConsolePage() {
                 name,
                 slug,
                 planCode,
-                ownerEmail: ownerEmail || undefined
+                ownerEmail,
+                ownerRole
               })
               .then((response) => {
                 setToast({ message: `Tenant ${response.data.slug} creado.`, tone: "success" });
                 setName("");
                 setSlug("");
                 setOwnerEmail("");
+                setOwnerRole("tenant_admin");
                 return loadTenants();
               })
               .catch((err) => {
@@ -107,12 +115,74 @@ export function PlatformConsolePage() {
             </select>
           </label>
           <label>
-            Owner email (opcional)
-            <input type="email" value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} />
+            Owner email
+            <input type="email" value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} required />
+          </label>
+          <label>
+            Rol inicial
+            <select value={ownerRole} onChange={(event) => setOwnerRole(event.target.value as TenantRole)}>
+              {TENANT_MEMBER_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="form-actions">
             <button className="btn-primary" type="submit" disabled={saving}>
               Crear tenant
+            </button>
+          </div>
+        </form>
+      </Panel>
+
+      <Panel title="Asignar usuario a empresa">
+        <form
+          className="form-grid"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSaving(true);
+            void api
+              .patch<{ ok: boolean }>("/api/platform/tenants", {
+                id: assignTenantId,
+                action: "assign_user",
+                email: assignEmail,
+                role: assignRole
+              })
+              .then(() => {
+                setToast({ message: `Usuario ${assignEmail} asignado a ${assignTenantId}.`, tone: "success" });
+                setAssignTenantId("");
+                setAssignEmail("");
+                setAssignRole("tenant_manager");
+                return loadTenants();
+              })
+              .catch((err) => {
+                setToast({ message: err instanceof Error ? err.message : "No se pudo asignar usuario.", tone: "error" });
+              })
+              .finally(() => setSaving(false));
+          }}
+        >
+          <label>
+            Tenant ID
+            <input value={assignTenantId} onChange={(event) => setAssignTenantId(event.target.value)} required />
+          </label>
+          <label>
+            Email usuario
+            <input type="email" value={assignEmail} onChange={(event) => setAssignEmail(event.target.value)} required />
+          </label>
+          <label>
+            Rol
+            <select value={assignRole} onChange={(event) => setAssignRole(event.target.value as TenantRole)}>
+              {TENANT_MEMBER_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-actions">
+            <button className="btn-primary" type="submit" disabled={saving}>
+              Asignar usuario
             </button>
           </div>
         </form>
@@ -142,35 +212,72 @@ export function PlatformConsolePage() {
                     <td>{tenant.plan.code}</td>
                     <td>{tenant.plan.limits.maxUsers}</td>
                     <td>
-                      <button
-                        className="btn-secondary"
-                        type="button"
-                        disabled={saving}
-                        onClick={() => {
-                          setSaving(true);
-                          void api
-                            .patch<{ ok: boolean }>("/api/platform/tenants", {
-                              id: tenant.id,
-                              status: tenant.status === "active" ? "suspended" : "active"
-                            })
-                            .then(() => {
-                              setToast({
-                                message: `Tenant ${tenant.status === "active" ? "suspendido" : "activado"}.`,
-                                tone: "info"
-                              });
-                              return loadTenants();
-                            })
-                            .catch((err) => {
-                              setToast({
-                                message: err instanceof Error ? err.message : "No se pudo actualizar tenant.",
-                                tone: "error"
-                              });
-                            })
-                            .finally(() => setSaving(false));
-                        }}
-                      >
-                        {tenant.status === "active" ? "Suspender" : "Activar"}
-                      </button>
+                      <div className="table-actions">
+                        <button
+                          className="btn-secondary"
+                          type="button"
+                          disabled={saving}
+                          onClick={() => {
+                            setSaving(true);
+                            void api
+                              .patch<{ ok: boolean }>("/api/platform/tenants", {
+                                id: tenant.id,
+                                status: tenant.status === "active" ? "suspended" : "active"
+                              })
+                              .then(() => {
+                                setToast({
+                                  message: `Tenant ${tenant.status === "active" ? "suspendido" : "activado"}.`,
+                                  tone: "info"
+                                });
+                                return loadTenants();
+                              })
+                              .catch((err) => {
+                                setToast({
+                                  message: err instanceof Error ? err.message : "No se pudo actualizar tenant.",
+                                  tone: "error"
+                                });
+                              })
+                              .finally(() => setSaving(false));
+                          }}
+                        >
+                          {tenant.status === "active" ? "Suspender" : "Activar"}
+                        </button>
+                        <button
+                          className="btn-danger"
+                          type="button"
+                          disabled={saving || tenant.status !== "suspended"}
+                          onClick={() => {
+                            const confirmation = window.prompt(
+                              `Escribe el slug "${tenant.slug}" para eliminar definitivamente el tenant ${tenant.id}.`
+                            );
+                            if (!confirmation) {
+                              return;
+                            }
+
+                            setSaving(true);
+                            void api
+                              .patch<{ ok: boolean }>("/api/platform/tenants", {
+                                id: tenant.id,
+                                action: "delete",
+                                confirmSlug: confirmation
+                              })
+                              .then(() => {
+                                setToast({ message: `Tenant ${tenant.id} eliminado.`, tone: "info" });
+                                return Promise.all([loadTenants(), loadDomains()]);
+                              })
+                              .catch((err) => {
+                                setToast({
+                                  message: err instanceof Error ? err.message : "No se pudo eliminar tenant.",
+                                  tone: "error"
+                                });
+                              })
+                              .finally(() => setSaving(false));
+                          }}
+                          title={tenant.status !== "suspended" ? "Debes suspender primero para eliminar." : undefined}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

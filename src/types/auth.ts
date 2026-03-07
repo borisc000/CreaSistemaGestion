@@ -1,6 +1,7 @@
 export const USER_ROLES = [
   "platform_admin",
   "tenant_admin",
+  "tenant_manager",
   "tender_lead",
   "contract_manager",
   "finance",

@@ -100,8 +100,8 @@ const MODULE_REGISTRY_INTERNAL = {
     primaryCollection: "tenders",
     enabled: true,
     accessPolicy: buildAccessPolicy(
-      ["platform_admin", "tenant_admin", "tender_lead", "contract_manager"],
-      ["platform_admin", "tenant_admin", "tender_lead"]
+      ["platform_admin", "tenant_admin", "tenant_manager", "tender_lead", "contract_manager"],
+      ["platform_admin", "tenant_admin", "tenant_manager", "tender_lead"]
     ),
     relations: {
       default: []
@@ -111,7 +111,7 @@ const MODULE_REGISTRY_INTERNAL = {
       label: "Licitaciones",
       href: "/licitaciones",
       order: 20,
-      visibleForRoles: ["platform_admin", "tenant_admin", "tender_lead"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "tender_lead"]
     }
   },
   contracts: {
@@ -123,8 +123,8 @@ const MODULE_REGISTRY_INTERNAL = {
     primaryCollection: "contracts",
     enabled: true,
     accessPolicy: buildAccessPolicy(
-      ["platform_admin", "tenant_admin", "tender_lead", "contract_manager", "finance", "hr"],
-      ["platform_admin", "tenant_admin", "tender_lead", "contract_manager"]
+      ["platform_admin", "tenant_admin", "tenant_manager", "tender_lead", "contract_manager", "finance", "hr"],
+      ["platform_admin", "tenant_admin", "tenant_manager", "tender_lead", "contract_manager"]
     ),
     relations: {
       default: [
@@ -141,7 +141,7 @@ const MODULE_REGISTRY_INTERNAL = {
       label: "Contratos",
       href: "/contratos",
       order: 30,
-      visibleForRoles: ["platform_admin", "tenant_admin", "tender_lead", "contract_manager"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "tender_lead", "contract_manager"]
     }
   },
   operations: {
@@ -153,8 +153,8 @@ const MODULE_REGISTRY_INTERNAL = {
     primaryCollection: "operationTasks",
     enabled: true,
     accessPolicy: buildAccessPolicy(
-      ["platform_admin", "tenant_admin", "contract_manager"],
-      ["platform_admin", "tenant_admin", "contract_manager"]
+      ["platform_admin", "tenant_admin", "tenant_manager", "contract_manager"],
+      ["platform_admin", "tenant_admin", "tenant_manager", "contract_manager"]
     ),
     relations: {
       default: [
@@ -171,7 +171,7 @@ const MODULE_REGISTRY_INTERNAL = {
       label: "Operaciones",
       href: "/operaciones",
       order: 40,
-      visibleForRoles: ["platform_admin", "tenant_admin", "contract_manager"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "contract_manager"]
     }
   },
   finance: {
@@ -183,8 +183,8 @@ const MODULE_REGISTRY_INTERNAL = {
     primaryCollection: "financeEntries",
     enabled: true,
     accessPolicy: buildAccessPolicy(
-      ["platform_admin", "tenant_admin", "finance"],
-      ["platform_admin", "tenant_admin", "finance"]
+      ["platform_admin", "tenant_admin", "tenant_manager", "finance"],
+      ["platform_admin", "tenant_admin", "tenant_manager", "finance"]
     ),
     relations: {
       default: [
@@ -201,7 +201,7 @@ const MODULE_REGISTRY_INTERNAL = {
       label: "Finanzas",
       href: "/finanzas",
       order: 50,
-      visibleForRoles: ["platform_admin", "tenant_admin", "finance"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "finance"]
     }
   },
   hr_recruiting: {
@@ -212,8 +212,8 @@ const MODULE_REGISTRY_INTERNAL = {
     collectionKeys: ["vacancies", "candidates"],
     enabled: true,
     accessPolicy: buildAccessPolicy(
-      ["platform_admin", "tenant_admin", "hr"],
-      ["platform_admin", "tenant_admin", "hr"]
+      ["platform_admin", "tenant_admin", "tenant_manager", "hr"],
+      ["platform_admin", "tenant_admin", "tenant_manager", "hr"]
     ),
     relations: {
       vacancies: [
@@ -241,7 +241,7 @@ const MODULE_REGISTRY_INTERNAL = {
       groupLabel: "RRHH",
       groupHref: "/rrhh",
       groupOrder: 60,
-      visibleForRoles: ["platform_admin", "tenant_admin", "hr"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "hr"]
     }
   },
   hr_people: {
@@ -253,8 +253,8 @@ const MODULE_REGISTRY_INTERNAL = {
     primaryCollection: "peopleRecords",
     enabled: true,
     accessPolicy: buildAccessPolicy(
-      ["platform_admin", "tenant_admin", "hr"],
-      ["platform_admin", "tenant_admin", "hr"]
+      ["platform_admin", "tenant_admin", "tenant_manager", "hr"],
+      ["platform_admin", "tenant_admin", "tenant_manager", "hr"]
     ),
     relations: {
       peopleRecords: [
@@ -310,7 +310,7 @@ const MODULE_REGISTRY_INTERNAL = {
       groupLabel: "RRHH",
       groupHref: "/rrhh",
       groupOrder: 60,
-      visibleForRoles: ["platform_admin", "tenant_admin", "hr"]
+      visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "hr"]
     }
   },
   admin_users: {

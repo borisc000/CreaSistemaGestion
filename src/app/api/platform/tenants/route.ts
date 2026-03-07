@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { NextRequest } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
+import { TENANT_MEMBER_ROLES, type TenantRole } from "@/lib/auth/roles";
 import { MODULE_KEYS } from "@/modules/registry";
 import { ApiError, jsonError, jsonOk } from "@/server/api/response";
 import { getTenantContext } from "@/server/auth/request-context";
@@ -8,6 +9,7 @@ import { assertPlatformAdmin } from "@/server/tenancy/access";
 import { buildTenantPlan } from "@/server/tenancy/plans";
 import {
   createTenant,
+  deleteTenantHard,
   getTenantById,
   listTenants,
   patchTenant,
@@ -21,7 +23,8 @@ const createTenantSchema = z.object({
   name: z.string().min(2).max(120),
   slug: z.string().min(3).max(40),
   planCode: z.enum(["starter", "pro", "enterprise"]).optional(),
-  ownerEmail: z.string().email().optional()
+  ownerEmail: z.string().email(),
+  ownerRole: z.string().min(2).optional()
 });
 
 const patchTenantSchema = z.object({
@@ -29,7 +32,11 @@ const patchTenantSchema = z.object({
   status: z.enum(["active", "suspended"]).optional(),
   planCode: z.enum(["starter", "pro", "enterprise"]).optional(),
   maxUsers: z.number().int().positive().optional(),
-  enabledModules: z.array(z.string().min(2)).optional()
+  enabledModules: z.array(z.string().min(2)).optional(),
+  action: z.enum(["assign_user", "delete"]).optional(),
+  email: z.string().email().optional(),
+  role: z.string().min(2).optional(),
+  confirmSlug: z.string().min(2).optional()
 });
 
 const TENANT_BASE_DOMAIN =
@@ -49,6 +56,13 @@ function parseEnabledModules(raw: string[] | undefined): ModuleKey[] | undefined
     throw new ApiError(400, "enabledModules contiene modulos no validos.");
   }
   return parsed;
+}
+
+function parseTenantRoleOrThrow(value: string): TenantRole {
+  if (!TENANT_MEMBER_ROLES.includes(value as TenantRole)) {
+    throw new ApiError(400, "Rol invalido para membresia de tenant.");
+  }
+  return value as TenantRole;
 }
 
 export async function GET(req: NextRequest) {
@@ -72,6 +86,7 @@ export async function POST(req: NextRequest) {
     const parsed = createTenantSchema.parse(await req.json());
 
     const slug = normalizeTenantSlug(parsed.slug, parsed.name);
+    const ownerRole = parseTenantRoleOrThrow(parsed.ownerRole || "tenant_admin");
     const existing = await getTenantById(slug);
     if (existing) {
       throw new ApiError(409, "Ya existe un tenant con ese slug.");
@@ -97,27 +112,26 @@ export async function POST(req: NextRequest) {
     }
 
     let ownerUid: string | null = null;
-    if (parsed.ownerEmail) {
-      const owner = await adminAuth.getUserByEmail(parsed.ownerEmail);
-      ownerUid = owner.uid;
-      const membership = await upsertTenantMembership({
-        tenantId: tenant.id,
-        uid: owner.uid,
-        email: parsed.ownerEmail,
-        role: "tenant_admin",
-        status: "active",
-        invitedByUid: context.uid,
-        acceptedAt: new Date().toISOString()
-      });
-      await syncCustomClaimsForMembership(owner.uid, membership, { preservePlatformRole: true });
-      await patchTenant(tenant.id, { ownerUserId: owner.uid });
-    }
+    const owner = await adminAuth.getUserByEmail(parsed.ownerEmail);
+    ownerUid = owner.uid;
+    const membership = await upsertTenantMembership({
+      tenantId: tenant.id,
+      uid: owner.uid,
+      email: parsed.ownerEmail,
+      role: ownerRole,
+      status: "active",
+      invitedByUid: context.uid,
+      acceptedAt: new Date().toISOString()
+    });
+    await syncCustomClaimsForMembership(owner.uid, membership, { preservePlatformRole: true });
+    await patchTenant(tenant.id, { ownerUserId: owner.uid });
 
     return jsonOk(
       {
         data: {
           ...tenant,
-          ownerUserId: ownerUid
+          ownerUserId: ownerUid,
+          ownerRole
         }
       },
       201
@@ -139,6 +153,63 @@ export async function PATCH(req: NextRequest) {
     const tenant = await getTenantById(parsed.id);
     if (!tenant) {
       throw new ApiError(404, "Tenant no encontrado.");
+    }
+
+    if (parsed.action === "assign_user") {
+      if (!parsed.email) {
+        throw new ApiError(400, "email es requerido para asignar usuario.");
+      }
+
+      const role = parseTenantRoleOrThrow(parsed.role || "viewer");
+      let targetUser;
+      try {
+        targetUser = await adminAuth.getUserByEmail(parsed.email);
+      } catch {
+        throw new ApiError(404, "El correo no existe en Auth. Debe iniciar sesion una vez primero.");
+      }
+
+      const membership = await upsertTenantMembership({
+        tenantId: tenant.id,
+        uid: targetUser.uid,
+        email: parsed.email,
+        role,
+        status: "active",
+        invitedByUid: context.uid,
+        acceptedAt: new Date().toISOString()
+      });
+      await syncCustomClaimsForMembership(targetUser.uid, membership, { preservePlatformRole: true });
+
+      if (role === "tenant_admin" && tenant.ownerUserId !== targetUser.uid) {
+        await patchTenant(tenant.id, { ownerUserId: targetUser.uid });
+      }
+
+      return jsonOk({
+        ok: true,
+        data: {
+          tenantId: tenant.id,
+          uid: targetUser.uid,
+          email: parsed.email.toLowerCase(),
+          role
+        }
+      });
+    }
+
+    if (parsed.action === "delete") {
+      if (tenant.status !== "suspended") {
+        throw new ApiError(409, "Para eliminar, primero debes suspender el tenant.");
+      }
+      if (!parsed.confirmSlug || parsed.confirmSlug !== tenant.slug) {
+        throw new ApiError(400, `Confirmacion invalida. Debes escribir el slug exacto: ${tenant.slug}`);
+      }
+
+      const deleted = await deleteTenantHard(tenant.id);
+      return jsonOk({
+        ok: true,
+        data: {
+          tenantId: tenant.id,
+          ...deleted
+        }
+      });
     }
 
     const nextPlanCode = parsed.planCode || tenant.plan.code;

@@ -14,6 +14,20 @@ const TENANTS_COLLECTION = "tenants";
 const TENANT_USERS_COLLECTION = "tenantUsers";
 const TENANT_INVITATIONS_COLLECTION = "tenantInvitations";
 const TENANT_DOMAINS_COLLECTION = "tenantDomains";
+const TENANT_SCOPED_COLLECTIONS_TO_DELETE = [
+  "tenders",
+  "contracts",
+  "operationTasks",
+  "financeEntries",
+  "vacancies",
+  "candidates",
+  "peopleRecords",
+  "personDocuments",
+  "personContractAssignments",
+  "accreditationTemplates",
+  "auditLogs",
+  "alerts"
+] as const;
 
 function toIso(value: unknown): string {
   if (value instanceof Timestamp) {
@@ -386,4 +400,57 @@ export async function listTenantDomains(tenantId?: string): Promise<TenantDomain
       });
     })
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+async function deleteByQuery(query: FirebaseFirestore.Query, batchSize = 200): Promise<number> {
+  let deleted = 0;
+
+  while (true) {
+    const snapshot = await query.limit(batchSize).get();
+    if (snapshot.empty) {
+      break;
+    }
+
+    const batch = adminDb.batch();
+    for (const doc of snapshot.docs) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+    deleted += snapshot.size;
+
+    if (snapshot.size < batchSize) {
+      break;
+    }
+  }
+
+  return deleted;
+}
+
+export async function deleteTenantHard(tenantId: string): Promise<{
+  deletedTenantScoped: number;
+  deletedMemberships: number;
+  deletedInvitations: number;
+  deletedDomains: number;
+}> {
+  const tenantRef = adminDb.collection(TENANTS_COLLECTION).doc(tenantId);
+
+  let deletedTenantScoped = 0;
+  for (const collectionKey of TENANT_SCOPED_COLLECTIONS_TO_DELETE) {
+    deletedTenantScoped += await deleteByQuery(tenantRef.collection(collectionKey));
+  }
+
+  const [deletedMemberships, deletedInvitations, deletedDomains] = await Promise.all([
+    deleteByQuery(adminDb.collection(TENANT_USERS_COLLECTION).where("tenantId", "==", tenantId)),
+    deleteByQuery(adminDb.collection(TENANT_INVITATIONS_COLLECTION).where("tenantId", "==", tenantId)),
+    deleteByQuery(adminDb.collection(TENANT_DOMAINS_COLLECTION).where("tenantId", "==", tenantId))
+  ]);
+
+  await tenantRef.delete();
+
+  return {
+    deletedTenantScoped,
+    deletedMemberships,
+    deletedInvitations,
+    deletedDomains
+  };
 }

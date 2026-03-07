@@ -80,6 +80,7 @@ export const NAV_ITEMS: NavItem[] = buildNavItemsFromModules();
 export const ROLE_LABELS: Record<UserRole, string> = {
   platform_admin: "Platform Admin",
   tenant_admin: "Administrador",
+  tenant_manager: "Jefe Operaciones",
   tender_lead: "Lider Licitaciones",
   contract_manager: "Contract Manager",
   finance: "Analista Finanzas",

@@ -16,7 +16,16 @@ setGlobalOptions({
 const db = getFirestore();
 const auth = getAuth();
 
-const USER_ROLES = ["platform_admin", "tenant_admin", "tender_lead", "contract_manager", "finance", "hr", "viewer"] as const;
+const USER_ROLES = [
+  "platform_admin",
+  "tenant_admin",
+  "tenant_manager",
+  "tender_lead",
+  "contract_manager",
+  "finance",
+  "hr",
+  "viewer"
+] as const;
 type UserRole = (typeof USER_ROLES)[number];
 
 function deriveDocumentStatus(expiryDate: string | null | undefined, now = new Date()) {
