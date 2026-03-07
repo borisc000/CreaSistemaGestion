@@ -14,6 +14,7 @@
     "functions:build": "npm --prefix functions run build",
     "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
+    "import:rh": "tsx scripts/import-rh-json.ts",
     "rules:generate": "tsx scripts/generate-firestore-rules.ts"
   },
   "dependencies": {

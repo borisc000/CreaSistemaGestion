@@ -65,7 +65,11 @@ export function HrPeoplePage() {
     position: "",
     contractId: "",
     hireDate: "",
-    employmentStatus: "active" as EmploymentStatus
+    employmentStatus: "active" as EmploymentStatus,
+    email: "",
+    phone: "",
+    jobFunction: "",
+    employmentType: ""
   });
 
   const [documentForm, setDocumentForm] = useState<{
@@ -250,7 +254,11 @@ export function HrPeoplePage() {
             event.preventDefault();
             void peopleApi.create({
               ...form,
-              contractId: form.contractId || null
+              contractId: form.contractId || null,
+              email: form.email || null,
+              phone: form.phone || null,
+              jobFunction: form.jobFunction || null,
+              employmentType: form.employmentType || null
             }).then((ok) => {
               if (!ok) {
                 setToast({ message: "No se pudo crear persona.", tone: "error" });
@@ -264,7 +272,11 @@ export function HrPeoplePage() {
                 position: "",
                 contractId: "",
                 hireDate: "",
-                employmentStatus: "active"
+                employmentStatus: "active",
+                email: "",
+                phone: "",
+                jobFunction: "",
+                employmentType: ""
               });
             });
           }}
@@ -333,6 +345,35 @@ export function HrPeoplePage() {
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            Correo
+            <input
+              type="email"
+              value={form.email}
+              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+            />
+          </label>
+          <label>
+            Telefono
+            <input
+              value={form.phone}
+              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+            />
+          </label>
+          <label>
+            Funcion
+            <input
+              value={form.jobFunction}
+              onChange={(event) => setForm((prev) => ({ ...prev, jobFunction: event.target.value }))}
+            />
+          </label>
+          <label>
+            Tipo contrato
+            <input
+              value={form.employmentType}
+              onChange={(event) => setForm((prev) => ({ ...prev, employmentType: event.target.value }))}
+            />
           </label>
           <button className="btn-primary" type="submit" disabled={peopleApi.pending === "saving"}>
             Guardar persona
@@ -430,6 +471,8 @@ export function HrPeoplePage() {
                 <th>Persona</th>
                 <th>RUT / ID</th>
                 <th>Cargo</th>
+                <th>Correo</th>
+                <th>Funcion</th>
                 <th>Contrato principal</th>
                 <th>Asignaciones activas</th>
                 <th>Ingreso</th>
@@ -441,7 +484,7 @@ export function HrPeoplePage() {
             <tbody>
               {peopleApi.items.length === 0 ? (
                 <tr className="table-empty-row">
-                  <td colSpan={9}>
+                  <td colSpan={11}>
                     <EmptyState message="Aun no hay personas cargadas en RRHH." />
                   </td>
                 </tr>
@@ -459,6 +502,8 @@ export function HrPeoplePage() {
                     <td>{person.fullName}</td>
                     <td>{person.idNumber}</td>
                     <td>{person.position}</td>
+                    <td>{person.email || "-"}</td>
+                    <td>{person.jobFunction || "-"}</td>
                     <td>{contract?.name || "Sin contrato"}</td>
                     <td>{activeAssignments}</td>
                     <td>{formatDate(person.hireDate)}</td>

@@ -112,6 +112,28 @@ export interface PersonRecord extends BaseEntity {
   hireDate: string;
   employmentStatus: EmploymentStatus;
   sourceCandidateId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  birthDate?: string | null;
+  nationality?: string | null;
+  maritalStatus?: string | null;
+  addressLine?: string | null;
+  district?: string | null;
+  city?: string | null;
+  country?: string | null;
+  jobFunction?: string | null;
+  employmentType?: string | null;
+  contractEndDate?: string | null;
+  workSchedule?: string | null;
+  workHours?: string | null;
+  externalCode?: string | null;
+  purchaseOrder?: string | null;
+  healthProvider?: string | null;
+  pensionFund?: string | null;
+  baseSalary?: number | null;
+  mealAllowance?: number | null;
+  transportAllowance?: number | null;
+  otherBonuses?: number | null;
 }
 
 export interface PersonDocument extends BaseEntity {

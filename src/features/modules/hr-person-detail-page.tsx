@@ -63,6 +63,28 @@ type EditablePersonForm = {
   contractId: string;
   hireDate: string;
   employmentStatus: EmploymentStatus;
+  email: string;
+  phone: string;
+  birthDate: string;
+  nationality: string;
+  maritalStatus: string;
+  addressLine: string;
+  district: string;
+  city: string;
+  country: string;
+  jobFunction: string;
+  employmentType: string;
+  contractEndDate: string;
+  workSchedule: string;
+  workHours: string;
+  externalCode: string;
+  purchaseOrder: string;
+  healthProvider: string;
+  pensionFund: string;
+  baseSalary: string;
+  mealAllowance: string;
+  transportAllowance: string;
+  otherBonuses: string;
 };
 
 type PersonDetailTab = "summary" | "documents" | "accreditation" | "payroll" | "audit";
@@ -77,6 +99,131 @@ function formatDateTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function normalizeOptionalText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function parseOptionalAmount(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function amountToInput(value: number | null | undefined): string {
+  if (typeof value !== "number" || Number.isNaN(value)) return "";
+  return String(value);
+}
+
+function buildEditablePersonForm(person: PersonRecord): EditablePersonForm {
+  return {
+    fullName: person.fullName,
+    idNumber: person.idNumber,
+    position: person.position,
+    contractId: person.contractId || "",
+    hireDate: person.hireDate,
+    employmentStatus: person.employmentStatus,
+    email: person.email || "",
+    phone: person.phone || "",
+    birthDate: person.birthDate || "",
+    nationality: person.nationality || "",
+    maritalStatus: person.maritalStatus || "",
+    addressLine: person.addressLine || "",
+    district: person.district || "",
+    city: person.city || "",
+    country: person.country || "",
+    jobFunction: person.jobFunction || "",
+    employmentType: person.employmentType || "",
+    contractEndDate: person.contractEndDate || "",
+    workSchedule: person.workSchedule || "",
+    workHours: person.workHours || "",
+    externalCode: person.externalCode || "",
+    purchaseOrder: person.purchaseOrder || "",
+    healthProvider: person.healthProvider || "",
+    pensionFund: person.pensionFund || "",
+    baseSalary: amountToInput(person.baseSalary),
+    mealAllowance: amountToInput(person.mealAllowance),
+    transportAllowance: amountToInput(person.transportAllowance),
+    otherBonuses: amountToInput(person.otherBonuses)
+  };
+}
+
+type EditablePersonPatchValues = {
+  fullName: string;
+  idNumber: string;
+  position: string;
+  contractId: string | null;
+  hireDate: string;
+  employmentStatus: EmploymentStatus;
+  email: string | null;
+  phone: string | null;
+  birthDate: string | null;
+  nationality: string | null;
+  maritalStatus: string | null;
+  addressLine: string | null;
+  district: string | null;
+  city: string | null;
+  country: string | null;
+  jobFunction: string | null;
+  employmentType: string | null;
+  contractEndDate: string | null;
+  workSchedule: string | null;
+  workHours: string | null;
+  externalCode: string | null;
+  purchaseOrder: string | null;
+  healthProvider: string | null;
+  pensionFund: string | null;
+  baseSalary: number | null;
+  mealAllowance: number | null;
+  transportAllowance: number | null;
+  otherBonuses: number | null;
+};
+
+function buildEditablePersonPatchValues(form: EditablePersonForm): EditablePersonPatchValues {
+  return {
+    fullName: form.fullName.trim(),
+    idNumber: form.idNumber.trim(),
+    position: form.position.trim(),
+    contractId: form.contractId || null,
+    hireDate: form.hireDate,
+    employmentStatus: form.employmentStatus,
+    email: normalizeOptionalText(form.email),
+    phone: normalizeOptionalText(form.phone),
+    birthDate: normalizeOptionalText(form.birthDate),
+    nationality: normalizeOptionalText(form.nationality),
+    maritalStatus: normalizeOptionalText(form.maritalStatus),
+    addressLine: normalizeOptionalText(form.addressLine),
+    district: normalizeOptionalText(form.district),
+    city: normalizeOptionalText(form.city),
+    country: normalizeOptionalText(form.country),
+    jobFunction: normalizeOptionalText(form.jobFunction),
+    employmentType: normalizeOptionalText(form.employmentType),
+    contractEndDate: normalizeOptionalText(form.contractEndDate),
+    workSchedule: normalizeOptionalText(form.workSchedule),
+    workHours: normalizeOptionalText(form.workHours),
+    externalCode: normalizeOptionalText(form.externalCode),
+    purchaseOrder: normalizeOptionalText(form.purchaseOrder),
+    healthProvider: normalizeOptionalText(form.healthProvider),
+    pensionFund: normalizeOptionalText(form.pensionFund),
+    baseSalary: parseOptionalAmount(form.baseSalary),
+    mealAllowance: parseOptionalAmount(form.mealAllowance),
+    transportAllowance: parseOptionalAmount(form.transportAllowance),
+    otherBonuses: parseOptionalAmount(form.otherBonuses)
+  };
+}
+
+function arePatchValuesEqual(left: EditablePersonPatchValues, right: EditablePersonPatchValues): boolean {
+  const leftKeys = Object.keys(left) as Array<keyof EditablePersonPatchValues>;
+  const rightKeys = Object.keys(right) as Array<keyof EditablePersonPatchValues>;
+  if (leftKeys.length !== rightKeys.length) return false;
+  for (const key of leftKeys) {
+    if (left[key] !== right[key]) return false;
+  }
+  return true;
 }
 
 export function HrPersonDetailPage({ personId }: { personId: string }) {
@@ -97,14 +244,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
     try {
       const response = await api.get<PersonDetailResponse>(`/api/hr/people/${personId}`);
       setData(response.data);
-      setForm({
-        fullName: response.data.person.fullName,
-        idNumber: response.data.person.idNumber,
-        position: response.data.person.position,
-        contractId: response.data.person.contractId || "",
-        hireDate: response.data.person.hireDate,
-        employmentStatus: response.data.person.employmentStatus
-      });
+      setForm(buildEditablePersonForm(response.data.person));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar la ficha de persona.");
     } finally {
@@ -118,14 +258,9 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
 
   const hasChanges = useMemo(() => {
     if (!data || !form) return false;
-    return (
-      form.fullName !== data.person.fullName ||
-      form.idNumber !== data.person.idNumber ||
-      form.position !== data.person.position ||
-      form.contractId !== (data.person.contractId || "") ||
-      form.hireDate !== data.person.hireDate ||
-      form.employmentStatus !== data.person.employmentStatus
-    );
+    const current = buildEditablePersonPatchValues(form);
+    const baseline = buildEditablePersonPatchValues(buildEditablePersonForm(data.person));
+    return !arePatchValuesEqual(current, baseline);
   }, [data, form]);
 
   const saveChanges = useCallback(async () => {
@@ -133,14 +268,10 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
     setSaving(true);
     setError(null);
     try {
+      const patch = buildEditablePersonPatchValues(form);
       await api.patch("/api/hr/people", {
         id: data.person.id,
-        fullName: form.fullName,
-        idNumber: form.idNumber,
-        position: form.position,
-        contractId: form.contractId || null,
-        hireDate: form.hireDate,
-        employmentStatus: form.employmentStatus
+        ...patch
       });
       await load();
       setToast({ message: "Ficha actualizada.", tone: "success" });
@@ -357,6 +488,218 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                     ))}
                   </select>
                 </label>
+                <p style={{ gridColumn: "1 / -1", margin: "4px 0 0", fontWeight: 700, color: "var(--text-soft)" }}>
+                  Contacto e identidad
+                </p>
+                <label>
+                  Correo
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => setForm((current) => (current ? { ...current, email: event.target.value } : current))}
+                  />
+                </label>
+                <label>
+                  Telefono
+                  <input
+                    value={form.phone}
+                    onChange={(event) => setForm((current) => (current ? { ...current, phone: event.target.value } : current))}
+                  />
+                </label>
+                <label>
+                  Fecha nacimiento
+                  <input
+                    type="date"
+                    value={form.birthDate}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, birthDate: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Nacionalidad
+                  <input
+                    value={form.nationality}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, nationality: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Situacion civil
+                  <input
+                    value={form.maritalStatus}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, maritalStatus: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Direccion
+                  <input
+                    value={form.addressLine}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, addressLine: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Comuna
+                  <input
+                    value={form.district}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, district: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Ciudad
+                  <input
+                    value={form.city}
+                    onChange={(event) => setForm((current) => (current ? { ...current, city: event.target.value } : current))}
+                  />
+                </label>
+                <label>
+                  Pais
+                  <input
+                    value={form.country}
+                    onChange={(event) => setForm((current) => (current ? { ...current, country: event.target.value } : current))}
+                  />
+                </label>
+                <p style={{ gridColumn: "1 / -1", margin: "4px 0 0", fontWeight: 700, color: "var(--text-soft)" }}>
+                  Laboral extendido
+                </p>
+                <label>
+                  Funcion
+                  <input
+                    value={form.jobFunction}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, jobFunction: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Tipo contrato
+                  <input
+                    value={form.employmentType}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, employmentType: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Hasta
+                  <input
+                    type="date"
+                    value={form.contractEndDate}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, contractEndDate: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Horario
+                  <input
+                    value={form.workSchedule}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, workSchedule: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Horas de trabajo
+                  <input
+                    value={form.workHours}
+                    onChange={(event) => setForm((current) => (current ? { ...current, workHours: event.target.value } : current))}
+                  />
+                </label>
+                <label>
+                  Codigo
+                  <input
+                    value={form.externalCode}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, externalCode: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  OC
+                  <input
+                    value={form.purchaseOrder}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, purchaseOrder: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <p style={{ gridColumn: "1 / -1", margin: "4px 0 0", fontWeight: 700, color: "var(--text-soft)" }}>
+                  Prevision y compensacion (informativo)
+                </p>
+                <label>
+                  Salud
+                  <input
+                    value={form.healthProvider}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, healthProvider: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  AFP
+                  <input
+                    value={form.pensionFund}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, pensionFund: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Sueldo base
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.baseSalary}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, baseSalary: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Bono colacion
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.mealAllowance}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, mealAllowance: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Bono locomocion
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.transportAllowance}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, transportAllowance: event.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Bonos otros
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.otherBonuses}
+                    onChange={(event) =>
+                      setForm((current) => (current ? { ...current, otherBonuses: event.target.value } : current))
+                    }
+                  />
+                </label>
                 <div className="toolbar">
                   <button className="btn-primary" type="submit" disabled={saving || !hasChanges}>
                     {saving ? "Guardando..." : "Guardar cambios"}
@@ -365,16 +708,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                     className="btn-secondary"
                     type="button"
                     disabled={saving || !hasChanges}
-                    onClick={() =>
-                      setForm({
-                        fullName: data.person.fullName,
-                        idNumber: data.person.idNumber,
-                        position: data.person.position,
-                        contractId: data.person.contractId || "",
-                        hireDate: data.person.hireDate,
-                        employmentStatus: data.person.employmentStatus
-                      })
-                    }
+                    onClick={() => setForm(buildEditablePersonForm(data.person))}
                   >
                     Revertir
                   </button>
@@ -394,6 +728,28 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               <div className="detail-item">
                 <strong>Asignaciones activas</strong>
                 <p>{activeAssignmentContracts.length ? activeAssignmentContracts.join(", ") : "Sin asignaciones activas"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Correo</strong>
+                <p>{data.person.email || "-"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Telefono</strong>
+                <p>{data.person.phone || "-"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Funcion</strong>
+                <p>{data.person.jobFunction || "-"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Tipo contrato</strong>
+                <p>{data.person.employmentType || "-"}</p>
+              </div>
+              <div className="detail-item">
+                <strong>Codigo / OC</strong>
+                <p>
+                  {data.person.externalCode || "-"} / {data.person.purchaseOrder || "-"}
+                </p>
               </div>
             </div>
           </Panel>

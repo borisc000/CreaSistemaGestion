@@ -13,6 +13,9 @@ import {
 
 const idSchema = z.string().min(3);
 const isoDateSchema = z.string().min(8);
+const optionalTextSchema = z.string().trim().min(1).nullable().optional();
+const optionalIsoDateSchema = z.string().min(8).nullable().optional();
+const optionalMoneySchema = z.number().nonnegative().nullable().optional();
 
 export const tenderCreateSchema = z.object({
   title: z.string().min(2),
@@ -94,7 +97,29 @@ export const personRecordCreateSchema = z.object({
   contractId: z.string().nullable(),
   hireDate: isoDateSchema,
   employmentStatus: z.enum(EMPLOYMENT_STATUSES),
-  sourceCandidateId: z.string().nullable().optional()
+  sourceCandidateId: z.string().nullable().optional(),
+  email: optionalTextSchema,
+  phone: optionalTextSchema,
+  birthDate: optionalIsoDateSchema,
+  nationality: optionalTextSchema,
+  maritalStatus: optionalTextSchema,
+  addressLine: optionalTextSchema,
+  district: optionalTextSchema,
+  city: optionalTextSchema,
+  country: optionalTextSchema,
+  jobFunction: optionalTextSchema,
+  employmentType: optionalTextSchema,
+  contractEndDate: optionalIsoDateSchema,
+  workSchedule: optionalTextSchema,
+  workHours: optionalTextSchema,
+  externalCode: optionalTextSchema,
+  purchaseOrder: optionalTextSchema,
+  healthProvider: optionalTextSchema,
+  pensionFund: optionalTextSchema,
+  baseSalary: optionalMoneySchema,
+  mealAllowance: optionalMoneySchema,
+  transportAllowance: optionalMoneySchema,
+  otherBonuses: optionalMoneySchema
 });
 
 export const personRecordPatchSchema = personRecordCreateSchema.partial().extend({ id: idSchema });
