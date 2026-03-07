@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ref, uploadBytes } from "firebase/storage";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge, Toast } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
@@ -54,6 +54,7 @@ export function HrPeoplePage() {
   });
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [documentActionPendingId, setDocumentActionPendingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
 
@@ -104,6 +105,48 @@ export function HrPeoplePage() {
       setToast({ message: "No se pudo subir documento.", tone: "error" });
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleDocumentAccess(document: PersonDocument, mode: "view" | "download") {
+    if (!document.filePath) {
+      setToast({ message: "El documento no tiene ruta de archivo registrada.", tone: "error" });
+      return;
+    }
+
+    if (!firebaseStorage) {
+      setToast({ message: "Firebase Storage no esta configurado.", tone: "error" });
+      return;
+    }
+
+    setDocumentActionPendingId(document.id);
+    const previewWindow = mode === "view" ? window.open("", "_blank", "noopener,noreferrer") : null;
+    try {
+      const url = await getDownloadURL(ref(firebaseStorage, document.filePath));
+      if (mode === "view") {
+        if (previewWindow) {
+          previewWindow.location.href = url;
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+      } else {
+        const anchor = window.document.createElement("a");
+        anchor.href = url;
+        anchor.download = document.fileName || "documento";
+        window.document.body.appendChild(anchor);
+        anchor.click();
+        window.document.body.removeChild(anchor);
+      }
+    } catch (err) {
+      if (previewWindow) {
+        previewWindow.close();
+      }
+      setToast({
+        message: err instanceof Error ? err.message : "No se pudo abrir el documento.",
+        tone: "error"
+      });
+    } finally {
+      setDocumentActionPendingId(null);
     }
   }
 
@@ -336,18 +379,20 @@ export function HrPeoplePage() {
                 <th>Archivo</th>
                 <th>Vence</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {documentsApi.items.length === 0 ? (
                 <tr className="table-empty-row">
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <EmptyState message="No hay documentos registrados todavia." />
                   </td>
                 </tr>
               ) : null}
               {documentsApi.items.map((document) => {
                 const person = peopleApi.items.find((item) => item.id === document.personId);
+                const busy = documentActionPendingId === document.id;
                 return (
                   <tr key={document.id}>
                     <td>{person?.fullName || "Persona no encontrada"}</td>
@@ -356,6 +401,26 @@ export function HrPeoplePage() {
                     <td>{formatDate(document.expiryDate)}</td>
                     <td>
                       <StatusBadge tone={toneFromDocumentStatus(document.status)}>{document.status}</StatusBadge>
+                    </td>
+                    <td>
+                      <div className="toolbar">
+                        <button
+                          className="btn-secondary"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleDocumentAccess(document, "view")}
+                        >
+                          Ver
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleDocumentAccess(document, "download")}
+                        >
+                          Descargar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

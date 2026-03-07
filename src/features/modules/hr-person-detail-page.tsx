@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref } from "firebase/storage";
 import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
+import { firebaseStorage } from "@/lib/firebase/client";
 import { EMPLOYMENT_STATUSES } from "@/types/catalogs";
 import type {
   AuditLogEntry,
@@ -66,6 +68,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [documentActionPendingId, setDocumentActionPendingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
   const [form, setForm] = useState<EditablePersonForm | null>(null);
 
@@ -129,6 +132,51 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
       setSaving(false);
     }
   }, [api, data, form, hasChanges, load, saving]);
+
+  const handleDocumentAccess = useCallback(
+    async (document: PersonDocument, mode: "view" | "download") => {
+      if (!document.filePath) {
+        setToast({ message: "El documento no tiene ruta de archivo registrada.", tone: "error" });
+        return;
+      }
+
+      if (!firebaseStorage) {
+        setToast({ message: "Firebase Storage no esta configurado.", tone: "error" });
+        return;
+      }
+
+      setDocumentActionPendingId(document.id);
+      const previewWindow = mode === "view" ? window.open("", "_blank", "noopener,noreferrer") : null;
+      try {
+        const url = await getDownloadURL(ref(firebaseStorage, document.filePath));
+        if (mode === "view") {
+          if (previewWindow) {
+            previewWindow.location.href = url;
+          } else {
+            window.open(url, "_blank", "noopener,noreferrer");
+          }
+        } else {
+          const anchor = window.document.createElement("a");
+          anchor.href = url;
+          anchor.download = document.fileName || "documento";
+          window.document.body.appendChild(anchor);
+          anchor.click();
+          window.document.body.removeChild(anchor);
+        }
+      } catch (err) {
+        if (previewWindow) {
+          previewWindow.close();
+        }
+        setToast({
+          message: err instanceof Error ? err.message : "No se pudo abrir el documento.",
+          tone: "error"
+        });
+      } finally {
+        setDocumentActionPendingId(null);
+      }
+    },
+    []
+  );
 
   const compliantDocuments = useMemo(
     () =>
@@ -310,24 +358,48 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                     <th>Archivo</th>
                     <th>Vencimiento</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.documents.length === 0 ? (
                     <tr className="table-empty-row">
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <EmptyState message="Sin documentos asociados." />
                       </td>
                     </tr>
                   ) : null}
-                  {data.documents.map((document) => (
-                    <tr key={document.id}>
-                      <td>{document.docType}</td>
-                      <td>{document.fileName}</td>
-                      <td>{formatDate(document.expiryDate)}</td>
-                      <td>{document.status}</td>
-                    </tr>
-                  ))}
+                  {data.documents.map((document) => {
+                    const busy = documentActionPendingId === document.id;
+                    return (
+                      <tr key={document.id}>
+                        <td>{document.docType}</td>
+                        <td>{document.fileName}</td>
+                        <td>{formatDate(document.expiryDate)}</td>
+                        <td>{document.status}</td>
+                        <td>
+                          <div className="toolbar">
+                            <button
+                              className="btn-secondary"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void handleDocumentAccess(document, "view")}
+                            >
+                              Ver
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void handleDocumentAccess(document, "download")}
+                            >
+                              Descargar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
