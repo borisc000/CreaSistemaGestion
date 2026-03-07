@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, StatusBadge, Toast } from "@/features/modules/module-ui";
+import { HrAccreditationPanel } from "@/features/modules/hr-accreditation-panel";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
 import { formatDate } from "@/lib/format";
@@ -18,6 +19,7 @@ import type {
 } from "@/types/domain";
 
 const EMPLOYMENT_STATUSES: EmploymentStatus[] = ["active", "on_leave", "inactive"];
+type HrPeopleTab = "people" | "documents" | "accreditation";
 
 function toneFromDocumentStatus(status: PersonDocumentStatus): "good" | "warn" | "risk" {
   if (status === "expired") return "risk";
@@ -54,6 +56,7 @@ export function HrPeoplePage() {
   });
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<HrPeopleTab>("people");
   const [documentActionPendingId, setDocumentActionPendingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
@@ -164,7 +167,32 @@ export function HrPeoplePage() {
           { label: "Documentos vencidos", value: documentStats.expired }
         ]}
       />
+      <div className="module-tabs" role="tablist" aria-label="RRHH Personas tabs">
+        <button
+          className={`tab-btn ${activeTab === "people" ? "is-active" : ""}`}
+          type="button"
+          onClick={() => setActiveTab("people")}
+        >
+          Personas
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "documents" ? "is-active" : ""}`}
+          type="button"
+          onClick={() => setActiveTab("documents")}
+        >
+          Documentos
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "accreditation" ? "is-active" : ""}`}
+          type="button"
+          onClick={() => setActiveTab("accreditation")}
+        >
+          Acreditacion
+        </button>
+      </div>
+      <InlineError message={uploadError || peopleApi.error || documentsApi.error || contractsApi.error} />
 
+      {activeTab === "people" ? (
       <Panel title="Nueva persona">
         <form
           className="form-grid"
@@ -257,7 +285,9 @@ export function HrPeoplePage() {
           </button>
         </form>
       </Panel>
+      ) : null}
 
+      {activeTab === "documents" ? (
       <Panel title="Subir documento">
         <form
           className="form-grid"
@@ -315,9 +345,10 @@ export function HrPeoplePage() {
           </button>
         </form>
       </Panel>
+      ) : null}
 
+      {activeTab === "people" ? (
       <Panel title="Personas y cumplimiento documental">
-        <InlineError message={uploadError || peopleApi.error || documentsApi.error || contractsApi.error} />
         <div className="table-wrap">
           <table>
             <thead>
@@ -368,7 +399,9 @@ export function HrPeoplePage() {
           </table>
         </div>
       </Panel>
+      ) : null}
 
+      {activeTab === "documents" ? (
       <Panel title="Documentos registrados">
         <div className="table-wrap">
           <table>
@@ -429,6 +462,9 @@ export function HrPeoplePage() {
           </table>
         </div>
       </Panel>
+      ) : null}
+
+      {activeTab === "accreditation" ? <HrAccreditationPanel /> : null}
     </ModulePage>
   );
 }

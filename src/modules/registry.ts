@@ -237,7 +237,7 @@ const MODULE_REGISTRY_INTERNAL = {
     label: "RRHH - Gestion de personas",
     route: "/rrhh/personas",
     apiBase: "/api/hr/people",
-    collectionKeys: ["peopleRecords", "personDocuments"],
+    collectionKeys: ["peopleRecords", "personDocuments", "personContractAssignments", "accreditationTemplates"],
     primaryCollection: "peopleRecords",
     enabled: true,
     accessPolicy: buildAccessPolicy(["admin", "hr"], ["admin", "hr"]),
@@ -256,6 +256,34 @@ const MODULE_REGISTRY_INTERNAL = {
           targetCollection: "peopleRecords",
           required: true,
           label: "person"
+        },
+        {
+          field: "contractId",
+          targetCollection: "contracts",
+          required: false,
+          label: "contract"
+        }
+      ],
+      personContractAssignments: [
+        {
+          field: "personId",
+          targetCollection: "peopleRecords",
+          required: true,
+          label: "person"
+        },
+        {
+          field: "contractId",
+          targetCollection: "contracts",
+          required: true,
+          label: "contract"
+        }
+      ],
+      accreditationTemplates: [
+        {
+          field: "contractId",
+          targetCollection: "contracts",
+          required: false,
+          label: "contract"
         }
       ]
     },

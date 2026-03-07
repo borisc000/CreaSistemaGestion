@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDownloadURL, ref } from "firebase/storage";
 import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
+import { HrAccreditationPanel } from "@/features/modules/hr-accreditation-panel";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
@@ -14,6 +15,7 @@ import type {
   Candidate,
   Contract,
   EmploymentStatus,
+  PersonContractAssignment,
   PersonDocument,
   PersonPayrollRecord,
   PersonRecord,
@@ -36,6 +38,20 @@ type PersonDetailResponse = {
       };
       placeholders: string[];
     };
+    accreditation: {
+      activeAssignments: PersonContractAssignment[];
+      indicators: Array<{
+        contractId: string;
+        contractName: string;
+        summary: {
+          total: number;
+          pending: number;
+          expired: number;
+          compliant: number;
+          reused: number;
+        };
+      }>;
+    };
     timeline: AuditLogEntry[];
   };
 };
@@ -48,6 +64,8 @@ type EditablePersonForm = {
   hireDate: string;
   employmentStatus: EmploymentStatus;
 };
+
+type PersonDetailTab = "summary" | "documents" | "accreditation" | "payroll" | "audit";
 
 function eventPillClass(eventType: AuditLogEntry["eventType"]) {
   if (eventType === "created") return "pill pill-created";
@@ -71,6 +89,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
   const [documentActionPendingId, setDocumentActionPendingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
   const [form, setForm] = useState<EditablePersonForm | null>(null);
+  const [activeTab, setActiveTab] = useState<PersonDetailTab>("summary");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -187,7 +206,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
   return (
     <ModulePage
       title={data ? `Ficha 360 - ${data.person.fullName}` : "Ficha 360 de persona"}
-      description="Vista integral de datos maestros, estado laboral, documentos, nomina resumen y trazabilidad."
+      description="Vista integral de datos maestros, documentos, acreditacion, nomina resumen y trazabilidad."
     >
       <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <Panel
@@ -217,7 +236,45 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               { label: "Liquido acumulado", value: formatCurrency(data.payroll.summary.netTotal) }
             ]}
           />
+          <div className="module-tabs" role="tablist" aria-label="Ficha persona tabs">
+            <button
+              className={`tab-btn ${activeTab === "summary" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setActiveTab("summary")}
+            >
+              Resumen
+            </button>
+            <button
+              className={`tab-btn ${activeTab === "documents" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setActiveTab("documents")}
+            >
+              Documentos
+            </button>
+            <button
+              className={`tab-btn ${activeTab === "accreditation" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setActiveTab("accreditation")}
+            >
+              Acreditacion
+            </button>
+            <button
+              className={`tab-btn ${activeTab === "payroll" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setActiveTab("payroll")}
+            >
+              Nomina
+            </button>
+            <button
+              className={`tab-btn ${activeTab === "audit" ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setActiveTab("audit")}
+            >
+              Auditoria
+            </button>
+          </div>
 
+          {activeTab === "summary" ? (
           <Panel title="Datos maestros (editable)">
             {form ? (
               <form
@@ -327,7 +384,9 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               </div>
             </div>
           </Panel>
+          ) : null}
 
+          {activeTab === "summary" ? (
           <Panel title="Origen y trazabilidad laboral">
             <div className="detail-grid">
               <div className="detail-item">
@@ -348,7 +407,9 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               </div>
             </div>
           </Panel>
+          ) : null}
 
+          {activeTab === "documents" ? (
           <Panel title="Documentos de persona">
             <div className="table-wrap">
               <table>
@@ -404,7 +465,33 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               </table>
             </div>
           </Panel>
+          ) : null}
 
+          {activeTab === "accreditation" ? (
+          <>
+            <Panel title="Indicadores de acreditacion">
+              <div className="detail-grid">
+                {data.accreditation.indicators.length === 0 ? (
+                  <EmptyState message="Aun no hay contratos activos para evaluar acreditacion." />
+                ) : null}
+                {data.accreditation.indicators.map((indicator) => (
+                  <div className="detail-item" key={indicator.contractId}>
+                    <strong>{indicator.contractName}</strong>
+                    <p>
+                      {indicator.summary.compliant + indicator.summary.reused}/{indicator.summary.total} al dia
+                    </p>
+                    <p>
+                      Pendientes: {indicator.summary.pending} | Vencidos: {indicator.summary.expired}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <HrAccreditationPanel fixedPersonId={personId} />
+          </>
+          ) : null}
+
+          {activeTab === "payroll" ? (
           <Panel title="Nomina resumen (ALFA)">
             <p>Se muestra resumen historico sin motor de calculo interno en esta fase.</p>
             <div className="table-wrap">
@@ -448,7 +535,9 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               ))}
             </div>
           </Panel>
+          ) : null}
 
+          {activeTab === "audit" ? (
           <Panel title="Timeline de auditoria">
             <div className="table-wrap">
               <table>
@@ -484,6 +573,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
               </table>
             </div>
           </Panel>
+          ) : null}
         </>
       ) : null}
     </ModulePage>

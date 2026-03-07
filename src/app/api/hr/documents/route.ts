@@ -17,6 +17,40 @@ function buildStoragePath(tenantId: string, personId: string, fileName: string) 
   return `tenants/${tenantId}/people/${personId}/documents/${Date.now()}-${cleanName}`;
 }
 
+function normalizeAccreditationMetadata(payload: {
+  templateCode?: string | null;
+  scope?: "global" | "client" | "contract";
+  clientName?: string | null;
+  contractId?: string | null;
+  validFrom?: string | null;
+  reusable?: boolean;
+}) {
+  const scope = payload.scope ?? "global";
+  const templateCode = payload.templateCode?.trim() || null;
+  const validFrom = payload.validFrom || null;
+  const reusable = payload.reusable ?? true;
+  let clientName = payload.clientName?.trim() || null;
+  let contractId = payload.contractId || null;
+
+  if (scope === "global") {
+    clientName = null;
+    contractId = null;
+  } else if (scope === "client") {
+    contractId = null;
+  } else if (!contractId) {
+    throw new ApiError(400, "contractId is required when scope is contract.");
+  }
+
+  return {
+    templateCode,
+    scope,
+    clientName,
+    contractId,
+    validFrom,
+    reusable
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const context = await getTenantContext(req, "hr_people", "read");
@@ -36,12 +70,16 @@ export async function POST(req: NextRequest) {
       ...body,
       filePath
     });
+    const accreditation = normalizeAccreditationMetadata(parsed);
 
     await validateModuleRelations({
       tenantId: context.tenantId,
       moduleKey: "hr_people",
       relationSet: "personDocuments",
-      payload: parsed,
+      payload: {
+        ...parsed,
+        ...accreditation
+      },
       mode: "create"
     });
 
@@ -50,6 +88,7 @@ export async function POST(req: NextRequest) {
       "personDocuments",
       {
         ...parsed,
+        ...accreditation,
         filePath,
         expiryDate: parsed.expiryDate ?? null,
         status: deriveDocumentStatus(parsed.expiryDate ?? null)
@@ -79,11 +118,23 @@ export async function PATCH(req: NextRequest) {
       throw new ApiError(404, "Document not found.");
     }
 
+    const accreditation = normalizeAccreditationMetadata({
+      templateCode: patch.templateCode !== undefined ? patch.templateCode : existing.templateCode ?? null,
+      scope: patch.scope !== undefined ? patch.scope : existing.scope ?? "global",
+      clientName: patch.clientName !== undefined ? patch.clientName : existing.clientName ?? null,
+      contractId: patch.contractId !== undefined ? patch.contractId : existing.contractId ?? null,
+      validFrom: patch.validFrom !== undefined ? patch.validFrom : existing.validFrom ?? null,
+      reusable: patch.reusable !== undefined ? patch.reusable : existing.reusable ?? true
+    });
+
     await validateModuleRelations({
       tenantId: context.tenantId,
       moduleKey: "hr_people",
       relationSet: "personDocuments",
-      payload: patch,
+      payload: {
+        ...patch,
+        ...accreditation
+      },
       mode: "patch"
     });
 
@@ -94,6 +145,7 @@ export async function PATCH(req: NextRequest) {
       id,
       {
         ...patch,
+        ...accreditation,
         status: deriveDocumentStatus(mergedExpiryDate ?? null)
       },
       {

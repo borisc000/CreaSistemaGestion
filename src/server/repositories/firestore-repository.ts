@@ -3,10 +3,12 @@ import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import type { CollectionKey } from "@/types/collections";
 import type {
+  AccreditationTemplate,
   Candidate,
   Contract,
   FinanceEntry,
   OperationTask,
+  PersonContractAssignment,
   PersonDocument,
   PersonRecord,
   Tender,
@@ -23,6 +25,8 @@ type EntityMap = {
   candidates: Candidate;
   peopleRecords: PersonRecord;
   personDocuments: PersonDocument;
+  personContractAssignments: PersonContractAssignment;
+  accreditationTemplates: AccreditationTemplate;
 };
 
 export type WriteActor = {

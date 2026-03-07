@@ -5,5 +5,7 @@ export const VACANCY_STATUSES = ["open", "paused", "closed"] as const;
 export const CANDIDATE_STAGES = ["intake", "screening", "interview", "offer", "hired", "rejected"] as const;
 export const EMPLOYMENT_STATUSES = ["active", "on_leave", "inactive"] as const;
 export const PERSON_DOCUMENT_STATUSES = ["uploaded", "pending", "expiring", "expired"] as const;
+export const PERSON_CONTRACT_ASSIGNMENT_STATUSES = ["active", "inactive"] as const;
+export const ACCREDITATION_SCOPES = ["global", "client", "contract"] as const;
 
 export const REQUIRED_PERSON_DOCUMENT_TYPES = ["Contrato", "Carnet"] as const;

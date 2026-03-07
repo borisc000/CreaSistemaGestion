@@ -4,11 +4,19 @@ import { adminDb } from "@/lib/firebase/admin";
 import { ApiError, jsonError, jsonOk } from "@/server/api/response";
 import { getTenantContext } from "@/server/auth/request-context";
 import { computeChangedFields, resolveAuditActor } from "@/server/domain/audit";
+import {
+  buildAccreditationMatrix,
+  ensureDefaultAccreditationTemplates,
+  isDateRangeActive
+} from "@/server/domain/accreditation";
 import { getEntity, listEntities } from "@/server/repositories/firestore-repository";
 import type {
+  AccreditationRequirementStatus,
+  AccreditationTemplate,
   AuditLogEntry,
   Candidate,
   Contract,
+  PersonContractAssignment,
   PersonDocument,
   PersonPayrollRecord,
   PersonRecord,
@@ -137,11 +145,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     if (!person) {
       throw new ApiError(404, "Person not found.");
     }
+    await ensureDefaultAccreditationTemplates(context.tenantId);
 
-    const [documents, contracts, candidates, payrollSnapshot, auditSnapshot] = await Promise.all([
+    const [documents, contracts, candidates, assignments, templates, payrollSnapshot, auditSnapshot] = await Promise.all([
       listEntities(context.tenantId, "personDocuments"),
       listEntities(context.tenantId, "contracts"),
       listEntities(context.tenantId, "candidates"),
+      listEntities(context.tenantId, "personContractAssignments"),
+      listEntities(context.tenantId, "accreditationTemplates"),
       adminDb
         .collection("tenants")
         .doc(context.tenantId)
@@ -161,8 +172,51 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const personDocuments = documents
       .filter((document) => document.personId === person.id)
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)) as PersonDocument[];
+    const personAssignments = assignments.filter((assignment) => assignment.personId === person.id) as PersonContractAssignment[];
+    const activeAssignments = personAssignments
+      .filter((assignment) => assignment.status === "active" && isDateRangeActive(assignment, new Date()))
+      .sort((left, right) => right.startDate.localeCompare(left.startDate));
+    const accreditationTemplates = templates as AccreditationTemplate[];
 
     const contract = (contracts.find((entry) => entry.id === person.contractId) || null) as Contract | null;
+    const contractById = new Map(contracts.map((entry) => [entry.id, entry as Contract]));
+    const accreditationContractIds = new Set<string>();
+    if (person.contractId) {
+      accreditationContractIds.add(person.contractId);
+    }
+    for (const assignment of activeAssignments) {
+      accreditationContractIds.add(assignment.contractId);
+    }
+    const accreditationIndicators = Array.from(accreditationContractIds)
+      .map((contractId) => contractById.get(contractId))
+      .filter((entry): entry is Contract => Boolean(entry))
+      .map((entry) => {
+        const requirements = buildAccreditationMatrix({
+          contract: entry,
+          templates: accreditationTemplates,
+          documents: personDocuments,
+          asOf: new Date()
+        });
+        const summary = requirements.reduce(
+          (acc, requirement) => {
+            acc.total += 1;
+            acc[requirement.status] += 1;
+            return acc;
+          },
+          {
+            total: 0,
+            pending: 0,
+            expired: 0,
+            compliant: 0,
+            reused: 0
+          } as Record<AccreditationRequirementStatus | "total", number>
+        );
+        return {
+          contractId: entry.id,
+          contractName: entry.name,
+          summary
+        };
+      });
 
     const sourceCandidate =
       ((person.sourceCandidateId
@@ -190,11 +244,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       .map((doc) => normalizeTimelineEntry(doc.id, doc.data() as Record<string, unknown>))
       .filter((entry) => {
         if (entry.collection === "peopleRecords" && entry.entityId === person.id) return true;
-        if (entry.collection !== "personDocuments") return false;
-
-        const beforePersonId = typeof entry.before?.personId === "string" ? entry.before.personId : null;
-        const afterPersonId = typeof entry.after?.personId === "string" ? entry.after.personId : null;
-        return beforePersonId === person.id || afterPersonId === person.id;
+        if (entry.collection === "personDocuments" || entry.collection === "personContractAssignments") {
+          const beforePersonId = typeof entry.before?.personId === "string" ? entry.before.personId : null;
+          const afterPersonId = typeof entry.after?.personId === "string" ? entry.after.personId : null;
+          return beforePersonId === person.id || afterPersonId === person.id;
+        }
+        return false;
       })
       .slice(0, 80);
 
@@ -217,6 +272,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
             "Pendiente: aprobacion de novedades (horas extra, descuentos, bonos).",
             "Pendiente: conciliacion con proveedor de nomina externo."
           ]
+        },
+        accreditation: {
+          activeAssignments,
+          indicators: accreditationIndicators
         },
         timeline
       }

@@ -24,6 +24,7 @@ service cloud.firestore {
 
     function canReadCollection(collection) {
       return (
+        (collection == "accreditationTemplates" && hasRole(["admin", "hr"])) ||
         (collection == "alerts" && hasRole(["admin", "contract_manager", "finance", "hr"])) ||
         (collection == "auditLogs" && hasRole(["admin"])) ||
         (collection == "candidates" && hasRole(["admin", "hr"])) ||
@@ -31,6 +32,7 @@ service cloud.firestore {
         (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
         (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
         (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
+        (collection == "personContractAssignments" && hasRole(["admin", "hr"])) ||
         (collection == "personDocuments" && hasRole(["admin", "hr"])) ||
         (collection == "tenders" && hasRole(["admin", "contract_manager", "tender_lead"])) ||
         (collection == "vacancies" && hasRole(["admin", "hr"]))
@@ -39,6 +41,7 @@ service cloud.firestore {
 
     function canWriteCollection(collection) {
       return (
+        (collection == "accreditationTemplates" && hasRole(["admin", "hr"])) ||
         (collection == "alerts" && hasRole([])) ||
         (collection == "auditLogs" && hasRole([])) ||
         (collection == "candidates" && hasRole(["admin", "hr"])) ||
@@ -46,6 +49,7 @@ service cloud.firestore {
         (collection == "financeEntries" && hasRole(["admin", "finance"])) ||
         (collection == "operationTasks" && hasRole(["admin", "contract_manager"])) ||
         (collection == "peopleRecords" && hasRole(["admin", "hr"])) ||
+        (collection == "personContractAssignments" && hasRole(["admin", "hr"])) ||
         (collection == "personDocuments" && hasRole(["admin", "hr"])) ||
         (collection == "tenders" && hasRole(["admin", "tender_lead"])) ||
         (collection == "vacancies" && hasRole(["admin", "hr"]))

@@ -128,6 +128,14 @@ const AUDIT_COLLECTIONS = [
   {
     collection: "personDocuments",
     moduleName: "personDocuments"
+  },
+  {
+    collection: "personContractAssignments",
+    moduleName: "personContractAssignments"
+  },
+  {
+    collection: "accreditationTemplates",
+    moduleName: "accreditationTemplates"
   }
 ] as const;
 
@@ -241,6 +249,14 @@ export const auditVacancyChanges = createAuditTrigger("vacancies", "vacancies");
 export const auditCandidateChanges = createAuditTrigger("candidates", "candidates");
 export const auditPeopleChanges = createAuditTrigger("peopleRecords", "peopleRecords");
 export const auditPersonDocumentChanges = createAuditTrigger("personDocuments", "personDocuments");
+export const auditPersonContractAssignmentChanges = createAuditTrigger(
+  "personContractAssignments",
+  "personContractAssignments"
+);
+export const auditAccreditationTemplateChanges = createAuditTrigger(
+  "accreditationTemplates",
+  "accreditationTemplates"
+);
 
 export const assignUserRole = onCall(async (request) => {
   if (!request.auth) {

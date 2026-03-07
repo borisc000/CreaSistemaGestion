@@ -1,8 +1,10 @@
 import type {
   CANDIDATE_STAGES,
   CONTRACT_STATUSES,
+  ACCREDITATION_SCOPES,
   EMPLOYMENT_STATUSES,
   OPERATION_TASK_STATUSES,
+  PERSON_CONTRACT_ASSIGNMENT_STATUSES,
   PERSON_DOCUMENT_STATUSES,
   TENDER_STATUSES,
   VACANCY_STATUSES
@@ -20,6 +22,8 @@ export type VacancyStatus = (typeof VACANCY_STATUSES)[number];
 export type CandidateStage = (typeof CANDIDATE_STAGES)[number];
 export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
 export type PersonDocumentStatus = (typeof PERSON_DOCUMENT_STATUSES)[number];
+export type PersonContractAssignmentStatus = (typeof PERSON_CONTRACT_ASSIGNMENT_STATUSES)[number];
+export type AccreditationScope = (typeof ACCREDITATION_SCOPES)[number];
 
 export interface TenantContext {
   tenantId: string;
@@ -111,8 +115,45 @@ export interface PersonDocument extends BaseEntity {
   docType: string;
   fileName: string;
   filePath: string;
+  templateCode?: string | null;
+  scope?: AccreditationScope;
+  clientName?: string | null;
+  contractId?: string | null;
+  validFrom?: string | null;
+  reusable?: boolean;
   status: PersonDocumentStatus;
   expiryDate: string | null;
+}
+
+export interface PersonContractAssignment extends BaseEntity {
+  personId: string;
+  contractId: string;
+  startDate: string;
+  endDate: string | null;
+  status: PersonContractAssignmentStatus;
+}
+
+export interface AccreditationTemplate extends BaseEntity {
+  code: string;
+  name: string;
+  scope: AccreditationScope;
+  clientName: string | null;
+  contractId: string | null;
+  required: boolean;
+  validityDays: number | null;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export type AccreditationRequirementStatus = "pending" | "expired" | "compliant" | "reused";
+
+export interface AccreditationRequirementResult {
+  template: AccreditationTemplate;
+  status: AccreditationRequirementStatus;
+  evidenceDocumentId: string | null;
+  evidenceFileName: string | null;
+  evidenceScope: AccreditationScope | null;
+  evidenceExpiryDate: string | null;
 }
 
 export interface PersonPayrollLineItem {

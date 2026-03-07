@@ -1,9 +1,11 @@
 import { z } from "zod";
 import {
+  ACCREDITATION_SCOPES,
   CANDIDATE_STAGES,
   CONTRACT_STATUSES,
   EMPLOYMENT_STATUSES,
   OPERATION_TASK_STATUSES,
+  PERSON_CONTRACT_ASSIGNMENT_STATUSES,
   PERSON_DOCUMENT_STATUSES,
   TENDER_STATUSES,
   VACANCY_STATUSES
@@ -102,8 +104,38 @@ export const personDocumentCreateSchema = z.object({
   docType: z.string().min(2),
   fileName: z.string().min(2),
   filePath: z.string().min(2).optional(),
+  templateCode: z.string().min(2).nullable().optional(),
+  scope: z.enum(ACCREDITATION_SCOPES).optional(),
+  clientName: z.string().min(2).nullable().optional(),
+  contractId: z.string().nullable().optional(),
+  validFrom: z.string().nullable().optional(),
+  reusable: z.boolean().optional(),
   status: z.enum(PERSON_DOCUMENT_STATUSES).optional(),
   expiryDate: z.string().nullable().optional()
 });
 
 export const personDocumentPatchSchema = personDocumentCreateSchema.partial().extend({ id: idSchema });
+
+export const personContractAssignmentCreateSchema = z.object({
+  personId: z.string().min(3),
+  contractId: z.string().min(3),
+  startDate: isoDateSchema,
+  endDate: z.string().nullable().optional(),
+  status: z.enum(PERSON_CONTRACT_ASSIGNMENT_STATUSES).optional()
+});
+
+export const personContractAssignmentPatchSchema = personContractAssignmentCreateSchema.partial().extend({ id: idSchema });
+
+export const accreditationTemplateCreateSchema = z.object({
+  code: z.string().min(2),
+  name: z.string().min(2),
+  scope: z.enum(ACCREDITATION_SCOPES),
+  clientName: z.string().nullable().optional(),
+  contractId: z.string().nullable().optional(),
+  required: z.boolean().default(true),
+  validityDays: z.number().int().positive().nullable().optional(),
+  enabled: z.boolean().default(true),
+  sortOrder: z.number().int().nonnegative().default(100)
+});
+
+export const accreditationTemplatePatchSchema = accreditationTemplateCreateSchema.partial().extend({ id: idSchema });

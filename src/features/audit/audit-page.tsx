@@ -27,7 +27,9 @@ const MODULE_OPTIONS = [
   "vacancies",
   "candidates",
   "peopleRecords",
-  "personDocuments"
+  "personDocuments",
+  "personContractAssignments",
+  "accreditationTemplates"
 ];
 
 function toQueryParams(params: Record<string, string | null | undefined>) {

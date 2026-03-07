@@ -49,6 +49,14 @@ const EXTRA_COLLECTION_POLICIES: Record<TenantCollectionKey, { read: UserRole[];
   personDocuments: {
     read: [],
     write: []
+  },
+  personContractAssignments: {
+    read: [],
+    write: []
+  },
+  accreditationTemplates: {
+    read: [],
+    write: []
   }
 };
 

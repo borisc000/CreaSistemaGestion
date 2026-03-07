@@ -464,7 +464,8 @@ textarea:focus-visible {
 .btn-secondary:focus-visible,
 .menu-btn:focus-visible,
 .nav-item:focus-visible,
-.nav-subitem:focus-visible {
+.nav-subitem:focus-visible,
+.tab-btn:focus-visible {
   outline: 2px solid rgba(21, 100, 170, 0.33);
   outline-offset: 1px;
 }
@@ -796,6 +797,41 @@ td select {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.module-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid #d7e3f2;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.tab-btn {
+  border: 1px solid #cdd9e7;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 6px 12px;
+  background: #fff;
+  color: #35506c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(25, 91, 154, 0.09);
+  border-color: #b9cde2;
+  transform: translateY(-1px);
+}
+
+.tab-btn.is-active {
+  background: rgba(15, 91, 157, 0.16);
+  border-color: rgba(15, 91, 157, 0.45);
+  color: #0d4d84;
 }
 
 .toolbar label {
