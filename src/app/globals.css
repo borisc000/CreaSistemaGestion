@@ -905,13 +905,6 @@ td select {
   font-size: 0.88rem;
 }
 
-.import-area {
-  display: grid;
-  gap: 5px;
-  font-size: 0.86rem;
-  color: var(--text-soft);
-}
-
 .drag-handle {
   display: inline-flex;
   align-items: center;

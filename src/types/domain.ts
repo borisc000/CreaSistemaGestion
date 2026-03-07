@@ -131,33 +131,6 @@ export interface PersonPayrollRecord extends BaseEntity {
   items: PersonPayrollLineItem[];
 }
 
-export type IntegrationDataset = "people" | "payroll";
-
-export type IntegrationRunStatus = "ok" | "partial" | "failed";
-
-export interface IntegrationImportError {
-  row: number;
-  code: string;
-  message: string;
-}
-
-export interface IntegrationImportRun extends BaseEntity {
-  source: string;
-  dataset: IntegrationDataset;
-  mode: "preview" | "commit";
-  status: IntegrationRunStatus;
-  actor: AuditActorInfo;
-  totals: {
-    received: number;
-    valid: number;
-    committed: number;
-    created: number;
-    updated: number;
-    errors: number;
-  };
-  errors: IntegrationImportError[];
-}
-
 export interface DashboardKpis {
   openTenders: number;
   activeContracts: number;

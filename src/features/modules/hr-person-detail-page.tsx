@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, SkeletonRows } from "@/features/modules/module-ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { EmptyState, InlineError, KpiGrid, ModulePage, Panel, SkeletonRows, Toast } from "@/features/modules/module-ui";
+import { useCrudModule } from "@/features/modules/use-crud-module";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useApiClient } from "@/lib/api/use-api-client";
+import { EMPLOYMENT_STATUSES } from "@/types/catalogs";
 import type {
   AuditLogEntry,
   Candidate,
   Contract,
+  EmploymentStatus,
   PersonDocument,
   PersonPayrollRecord,
   PersonRecord,
@@ -35,6 +38,15 @@ type PersonDetailResponse = {
   };
 };
 
+type EditablePersonForm = {
+  fullName: string;
+  idNumber: string;
+  position: string;
+  contractId: string;
+  hireDate: string;
+  employmentStatus: EmploymentStatus;
+};
+
 function eventPillClass(eventType: AuditLogEntry["eventType"]) {
   if (eventType === "created") return "pill pill-created";
   if (eventType === "deleted") return "pill pill-deleted";
@@ -49,35 +61,74 @@ function formatDateTime(value: string): string {
 
 export function HrPersonDetailPage({ personId }: { personId: string }) {
   const api = useApiClient();
+  const contractsApi = useCrudModule<Contract>("/api/contracts");
   const [data, setData] = useState<PersonDetailResponse["data"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+  const [form, setForm] = useState<EditablePersonForm | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get<PersonDetailResponse>(`/api/hr/people/${personId}`);
+      setData(response.data);
+      setForm({
+        fullName: response.data.person.fullName,
+        idNumber: response.data.person.idNumber,
+        position: response.data.person.position,
+        contractId: response.data.person.contractId || "",
+        hireDate: response.data.person.hireDate,
+        employmentStatus: response.data.person.employmentStatus
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cargar la ficha de persona.");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, personId]);
 
   useEffect(() => {
-    let mounted = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await api.get<PersonDetailResponse>(`/api/hr/people/${personId}`);
-        if (!mounted) return;
-        setData(response.data);
-      } catch (err) {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : "No se pudo cargar la ficha de persona.");
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
     void load();
-    return () => {
-      mounted = false;
-    };
-  }, [api, personId]);
+  }, [load]);
+
+  const hasChanges = useMemo(() => {
+    if (!data || !form) return false;
+    return (
+      form.fullName !== data.person.fullName ||
+      form.idNumber !== data.person.idNumber ||
+      form.position !== data.person.position ||
+      form.contractId !== (data.person.contractId || "") ||
+      form.hireDate !== data.person.hireDate ||
+      form.employmentStatus !== data.person.employmentStatus
+    );
+  }, [data, form]);
+
+  const saveChanges = useCallback(async () => {
+    if (!data || !form || saving || !hasChanges) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.patch("/api/hr/people", {
+        id: data.person.id,
+        fullName: form.fullName,
+        idNumber: form.idNumber,
+        position: form.position,
+        contractId: form.contractId || null,
+        hireDate: form.hireDate,
+        employmentStatus: form.employmentStatus
+      });
+      await load();
+      setToast({ message: "Ficha actualizada.", tone: "success" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar cambios.");
+      setToast({ message: "No se pudo actualizar la ficha.", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
+  }, [api, data, form, hasChanges, load, saving]);
 
   const compliantDocuments = useMemo(
     () =>
@@ -90,6 +141,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
       title={data ? `Ficha 360 - ${data.person.fullName}` : "Ficha 360 de persona"}
       description="Vista integral de datos maestros, estado laboral, documentos, nomina resumen y trazabilidad."
     >
+      <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <Panel
         title="Acciones"
         right={
@@ -101,7 +153,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
         <p>Esta ficha consolida informacion transversal para gestion ERP de RRHH.</p>
       </Panel>
 
-      <InlineError message={error} />
+      <InlineError message={error || contractsApi.error} />
 
       {loading ? <SkeletonRows rows={8} /> : null}
 
@@ -118,30 +170,111 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
             ]}
           />
 
-          <Panel title="Resumen maestro">
+          <Panel title="Datos maestros (editable)">
+            {form ? (
+              <form
+                className="form-grid"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveChanges();
+                }}
+              >
+                <label>
+                  Nombre completo
+                  <input
+                    value={form.fullName}
+                    onChange={(event) => setForm((current) => (current ? { ...current, fullName: event.target.value } : current))}
+                    required
+                  />
+                </label>
+                <label>
+                  RUT / ID
+                  <input
+                    value={form.idNumber}
+                    onChange={(event) => setForm((current) => (current ? { ...current, idNumber: event.target.value } : current))}
+                    required
+                  />
+                </label>
+                <label>
+                  Cargo
+                  <input
+                    value={form.position}
+                    onChange={(event) => setForm((current) => (current ? { ...current, position: event.target.value } : current))}
+                    required
+                  />
+                </label>
+                <label>
+                  Contrato
+                  <select
+                    value={form.contractId}
+                    onChange={(event) => setForm((current) => (current ? { ...current, contractId: event.target.value } : current))}
+                  >
+                    <option value="">Sin contrato</option>
+                    {contractsApi.items.map((contract) => (
+                      <option key={contract.id} value={contract.id}>
+                        {contract.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Fecha ingreso
+                  <input
+                    type="date"
+                    value={form.hireDate}
+                    onChange={(event) => setForm((current) => (current ? { ...current, hireDate: event.target.value } : current))}
+                    required
+                  />
+                </label>
+                <label>
+                  Estado laboral
+                  <select
+                    value={form.employmentStatus}
+                    onChange={(event) =>
+                      setForm((current) =>
+                        current ? { ...current, employmentStatus: event.target.value as EmploymentStatus } : current
+                      )
+                    }
+                  >
+                    {EMPLOYMENT_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="toolbar">
+                  <button className="btn-primary" type="submit" disabled={saving || !hasChanges}>
+                    {saving ? "Guardando..." : "Guardar cambios"}
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    disabled={saving || !hasChanges}
+                    onClick={() =>
+                      setForm({
+                        fullName: data.person.fullName,
+                        idNumber: data.person.idNumber,
+                        position: data.person.position,
+                        contractId: data.person.contractId || "",
+                        hireDate: data.person.hireDate,
+                        employmentStatus: data.person.employmentStatus
+                      })
+                    }
+                  >
+                    Revertir
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
             <div className="detail-grid">
-              <div className="detail-item">
-                <strong>Nombre</strong>
-                <p>{data.person.fullName}</p>
-              </div>
-              <div className="detail-item">
-                <strong>RUT / ID</strong>
-                <p>{data.person.idNumber}</p>
-              </div>
               <div className="detail-item">
                 <strong>RUT normalizado</strong>
                 <p>{data.person.rutNormalized || "No aplica (pendiente)"}</p>
               </div>
               <div className="detail-item">
-                <strong>Cargo</strong>
-                <p>{data.person.position}</p>
-              </div>
-              <div className="detail-item">
-                <strong>Fecha ingreso</strong>
-                <p>{formatDate(data.person.hireDate)}</p>
-              </div>
-              <div className="detail-item">
-                <strong>Contrato</strong>
+                <strong>Contrato actual</strong>
                 <p>{data.contract?.name || "Sin contrato asociado"}</p>
               </div>
             </div>
@@ -217,7 +350,7 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                   {data.payroll.records.length === 0 ? (
                     <tr className="table-empty-row">
                       <td colSpan={5}>
-                        <EmptyState message="Aun no hay registros de nomina importados para esta persona." />
+                        <EmptyState message="Aun no hay registros de nomina para esta persona." />
                       </td>
                     </tr>
                   ) : null}
