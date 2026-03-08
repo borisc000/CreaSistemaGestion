@@ -11,6 +11,8 @@ type ImportContract = {
   startDate: string;
   endDate: string;
   status: "planning" | "active" | "at_risk" | "closed";
+  code?: string | null;
+  purchaseOrder?: string | null;
 };
 
 type ImportPerson = {
@@ -35,8 +37,6 @@ type ImportPerson = {
   contractEndDate?: string | null;
   workSchedule?: string | null;
   workHours?: string | null;
-  externalCode?: string | null;
-  purchaseOrder?: string | null;
   healthProvider?: string | null;
   pensionFund?: string | null;
   baseSalary?: number | null;
@@ -128,6 +128,8 @@ async function main() {
         cleanUndefined({
           name: contract.name,
           client: contract.client,
+          code: normalizeOptionalText(contract.code),
+          purchaseOrder: normalizeOptionalText(contract.purchaseOrder),
           startDate: contract.startDate,
           endDate: contract.endDate,
           status: contract.status,
@@ -150,6 +152,8 @@ async function main() {
       tenderId: null,
       name: contract.name,
       client: contract.client,
+      code: normalizeOptionalText(contract.code),
+      purchaseOrder: normalizeOptionalText(contract.purchaseOrder),
       totalValue: 0,
       costEstimate: 0,
       startDate: contract.startDate,
@@ -211,8 +215,6 @@ async function main() {
       contractEndDate: normalizeOptionalText(person.contractEndDate),
       workSchedule: normalizeOptionalText(person.workSchedule),
       workHours: normalizeOptionalText(person.workHours),
-      externalCode: normalizeOptionalText(person.externalCode),
-      purchaseOrder: normalizeOptionalText(person.purchaseOrder),
       healthProvider: normalizeOptionalText(person.healthProvider),
       pensionFund: normalizeOptionalText(person.pensionFund),
       baseSalary: safeMoney(person.baseSalary),

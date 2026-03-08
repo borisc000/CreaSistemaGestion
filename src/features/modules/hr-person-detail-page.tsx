@@ -77,8 +77,6 @@ type EditablePersonForm = {
   contractEndDate: string;
   workSchedule: string;
   workHours: string;
-  externalCode: string;
-  purchaseOrder: string;
   healthProvider: string;
   pensionFund: string;
   baseSalary: string;
@@ -141,8 +139,6 @@ function buildEditablePersonForm(person: PersonRecord): EditablePersonForm {
     contractEndDate: person.contractEndDate || "",
     workSchedule: person.workSchedule || "",
     workHours: person.workHours || "",
-    externalCode: person.externalCode || "",
-    purchaseOrder: person.purchaseOrder || "",
     healthProvider: person.healthProvider || "",
     pensionFund: person.pensionFund || "",
     baseSalary: amountToInput(person.baseSalary),
@@ -173,8 +169,6 @@ type EditablePersonPatchValues = {
   contractEndDate: string | null;
   workSchedule: string | null;
   workHours: string | null;
-  externalCode: string | null;
-  purchaseOrder: string | null;
   healthProvider: string | null;
   pensionFund: string | null;
   baseSalary: number | null;
@@ -205,8 +199,6 @@ function buildEditablePersonPatchValues(form: EditablePersonForm): EditablePerso
     contractEndDate: normalizeOptionalText(form.contractEndDate),
     workSchedule: normalizeOptionalText(form.workSchedule),
     workHours: normalizeOptionalText(form.workHours),
-    externalCode: normalizeOptionalText(form.externalCode),
-    purchaseOrder: normalizeOptionalText(form.purchaseOrder),
     healthProvider: normalizeOptionalText(form.healthProvider),
     pensionFund: normalizeOptionalText(form.pensionFund),
     baseSalary: parseOptionalAmount(form.baseSalary),
@@ -613,24 +605,6 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                     onChange={(event) => setForm((current) => (current ? { ...current, workHours: event.target.value } : current))}
                   />
                 </label>
-                <label>
-                  Codigo
-                  <input
-                    value={form.externalCode}
-                    onChange={(event) =>
-                      setForm((current) => (current ? { ...current, externalCode: event.target.value } : current))
-                    }
-                  />
-                </label>
-                <label>
-                  OC
-                  <input
-                    value={form.purchaseOrder}
-                    onChange={(event) =>
-                      setForm((current) => (current ? { ...current, purchaseOrder: event.target.value } : current))
-                    }
-                  />
-                </label>
                 <p style={{ gridColumn: "1 / -1", margin: "4px 0 0", fontWeight: 700, color: "var(--text-soft)" }}>
                   Prevision y compensacion (informativo)
                 </p>
@@ -746,9 +720,9 @@ export function HrPersonDetailPage({ personId }: { personId: string }) {
                 <p>{data.person.employmentType || "-"}</p>
               </div>
               <div className="detail-item">
-                <strong>Codigo / OC</strong>
+                <strong>Codigo / OC del contrato</strong>
                 <p>
-                  {data.person.externalCode || "-"} / {data.person.purchaseOrder || "-"}
+                  {data.contract?.code || "-"} / {data.contract?.purchaseOrder || "-"}
                 </p>
               </div>
             </div>

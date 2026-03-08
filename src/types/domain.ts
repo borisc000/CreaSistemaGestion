@@ -56,6 +56,9 @@ export interface Contract extends BaseEntity {
   tenderId: string | null;
   name: string;
   client: string;
+  code?: string | null;
+  purchaseOrder?: string | null;
+  description?: string | null;
   totalValue: number;
   costEstimate: number;
   startDate: string;
@@ -126,8 +129,6 @@ export interface PersonRecord extends BaseEntity {
   contractEndDate?: string | null;
   workSchedule?: string | null;
   workHours?: string | null;
-  externalCode?: string | null;
-  purchaseOrder?: string | null;
   healthProvider?: string | null;
   pensionFund?: string | null;
   baseSalary?: number | null;

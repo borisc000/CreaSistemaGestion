@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useCrudModule } from "@/features/modules/use-crud-module";
 import {
@@ -29,6 +30,9 @@ export function ContractsPage() {
     tenderId: "",
     name: "",
     client: "",
+    code: "",
+    purchaseOrder: "",
+    description: "",
     totalValue: 0,
     costEstimate: 0,
     startDate: "",
@@ -67,7 +71,15 @@ export function ContractsPage() {
           className="form-grid"
           onSubmit={(event) => {
             event.preventDefault();
-            void contractsApi.create({ ...form, tenderId: form.tenderId || null }).then((ok) => {
+            void contractsApi
+              .create({
+                ...form,
+                tenderId: form.tenderId || null,
+                code: form.code || null,
+                purchaseOrder: form.purchaseOrder || null,
+                description: form.description || null
+              })
+              .then((ok) => {
               if (!ok) {
                 setToast({ message: "No se pudo crear contrato.", tone: "error" });
                 return;
@@ -78,6 +90,9 @@ export function ContractsPage() {
                 tenderId: "",
                 name: "",
                 client: "",
+                code: "",
+                purchaseOrder: "",
+                description: "",
                 totalValue: 0,
                 costEstimate: 0,
                 startDate: "",
@@ -96,6 +111,18 @@ export function ContractsPage() {
           <label>
             Cliente
             <input value={form.client} onChange={(e) => setForm((v) => ({ ...v, client: e.target.value }))} required />
+          </label>
+          <label>
+            Codigo contrato
+            <input value={form.code} onChange={(e) => setForm((v) => ({ ...v, code: e.target.value }))} />
+          </label>
+          <label>
+            OC
+            <input value={form.purchaseOrder} onChange={(e) => setForm((v) => ({ ...v, purchaseOrder: e.target.value }))} />
+          </label>
+          <label>
+            Descripcion / alcance
+            <input value={form.description} onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))} />
           </label>
           <label>
             Licitacion ganada
@@ -159,18 +186,21 @@ export function ContractsPage() {
               <tr>
                 <th>Contrato</th>
                 <th>Cliente</th>
+                <th>Codigo</th>
+                <th>OC</th>
                 <th>Valor</th>
                 <th>Costo</th>
                 <th>Margen %</th>
                 <th>Inicio</th>
                 <th>Fin</th>
                 <th>Estado</th>
+                <th>Detalle</th>
               </tr>
             </thead>
             <tbody>
               {contractsApi.items.length === 0 ? (
                 <tr className="table-empty-row">
-                  <td colSpan={8}>
+                  <td colSpan={11}>
                     <EmptyState message="Aun no hay contratos registrados." />
                   </td>
                 </tr>
@@ -181,6 +211,8 @@ export function ContractsPage() {
                   <tr key={item.id}>
                     <td>{item.name}</td>
                     <td>{item.client}</td>
+                    <td>{item.code || "-"}</td>
+                    <td>{item.purchaseOrder || "-"}</td>
                     <td>{formatCurrency(item.totalValue)}</td>
                     <td>{formatCurrency(item.costEstimate)}</td>
                     <td>{marginPct}%</td>
@@ -204,6 +236,11 @@ export function ContractsPage() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td>
+                      <Link className="btn-secondary" href={`/contratos/${item.id}`}>
+                        Ver ficha
+                      </Link>
                     </td>
                   </tr>
                 );
