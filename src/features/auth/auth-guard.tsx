@@ -15,7 +15,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (!loading && user && role === "platform_admin" && !tenantId && pathname === "/dashboard") {
-      router.replace("/platform");
+      router.replace("/configuraciones/plataforma");
     }
   }, [loading, user, pathname, role, tenantId, router]);
 

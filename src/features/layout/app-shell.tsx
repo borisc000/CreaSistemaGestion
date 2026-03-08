@@ -7,11 +7,25 @@ import { getTenantRoleLabel } from "@/lib/auth/roles";
 import { useAuth } from "@/features/auth/auth-provider";
 import { NAV_ITEMS, ROLE_LABELS } from "@/features/layout/nav-config";
 import { resolveModuleKeyFromPath } from "@/modules/registry";
-import { canViewModule } from "@/server/auth/roles";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function canViewEffectiveModule(
+  moduleAccess: Partial<Record<string, { read: boolean }>>,
+  moduleKey: string
+): boolean {
+  return Boolean(moduleAccess[moduleKey]?.read);
+}
+
+function hasSettingsModuleAccess(moduleAccess: Partial<Record<string, { read: boolean }>>): boolean {
+  return (
+    canViewEffectiveModule(moduleAccess, "admin_users") ||
+    canViewEffectiveModule(moduleAccess, "audit") ||
+    canViewEffectiveModule(moduleAccess, "platform")
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -21,6 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     logout,
     user,
     tenantId,
+    moduleAccess,
     memberships,
     switchTenant,
     switchingTenant,
@@ -30,7 +45,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [selectedTenantId, setSelectedTenantId] = useState(tenantId || "");
   const routeModule = resolveModuleKeyFromPath(pathname);
   const hasTenantEnvironment = Boolean(tenantId);
-  const hasAccessByRole = routeModule ? canViewModule(role, routeModule) : true;
+  const settingsVisible = hasSettingsModuleAccess(moduleAccess);
+  const hasAccessByRole = routeModule ? canViewEffectiveModule(moduleAccess, routeModule) : true;
   const hasAccess =
     hasAccessByRole &&
     (!routeModule || routeModule === "platform" || routeModule === "dashboard" || hasTenantEnvironment || needsOnboarding);
@@ -39,10 +55,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? []
     : NAV_ITEMS.filter((item) => {
         if (!item.children) {
+          if (item.href === "/configuraciones") {
+            return settingsVisible;
+          }
           if (role === "platform_admin" && !hasTenantEnvironment && item.moduleKey && item.moduleKey !== "platform") {
             return false;
           }
-          return item.moduleKey ? canViewModule(role, item.moduleKey) : true;
+          return item.moduleKey ? canViewEffectiveModule(moduleAccess, item.moduleKey) : true;
         }
 
         return item.children.some((child) => {
@@ -50,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           if (role === "platform_admin" && !hasTenantEnvironment && child.moduleKey !== "platform") {
             return false;
           }
-          return canViewModule(role, child.moduleKey);
+          return canViewEffectiveModule(moduleAccess, child.moduleKey);
         });
       });
 
@@ -105,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   if (role === "platform_admin" && !hasTenantEnvironment && child.moduleKey !== "platform") {
                     return false;
                   }
-                  return canViewModule(role, child.moduleKey);
+                  return canViewEffectiveModule(moduleAccess, child.moduleKey);
                 })
                 .map((child) => {
                   const activeChild = isActive(pathname, child.href);
@@ -172,13 +191,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             ) : null}
-            {role === "platform_admin" ? (
-              <Link className="btn-secondary" href="/platform">
+            {canViewEffectiveModule(moduleAccess, "platform") ? (
+              <Link className="btn-secondary" href="/configuraciones/plataforma">
                 Gestionar empresas
               </Link>
             ) : null}
-            {role === "tenant_admin" || role === "platform_admin" ? (
-              <Link className="pill" href="/auditoria">
+            {canViewEffectiveModule(moduleAccess, "audit") ? (
+              <Link className="pill" href="/configuraciones/auditoria">
                 Auditoria
               </Link>
             ) : null}

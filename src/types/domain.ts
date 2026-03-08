@@ -226,6 +226,7 @@ export type TenantUserStatus = "active" | "invited" | "revoked";
 export type TenantInvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 export type TenantDomainType = "wildcard" | "custom";
 export type BillingPlanCode = "starter" | "pro" | "enterprise";
+export type TenantCurrency = "CLP" | "USD";
 
 export interface TenantPlan {
   code: BillingPlanCode;
@@ -236,15 +237,30 @@ export interface TenantPlan {
   };
 }
 
+export interface TenantCompanySettings {
+  currency: TenantCurrency;
+}
+
+export interface TenantSettings {
+  company: TenantCompanySettings;
+}
+
 export interface TenantRecord {
   id: string;
   name: string;
   slug: string;
   status: TenantStatus;
   plan: TenantPlan;
+  settings?: Partial<TenantSettings>;
   ownerUserId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ModuleAccessSnapshot {
+  read: boolean;
+  write: boolean;
+  enabledForTenant: boolean;
 }
 
 export interface TenantUserMembership {

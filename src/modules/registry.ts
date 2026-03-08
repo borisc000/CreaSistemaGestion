@@ -316,7 +316,7 @@ const MODULE_REGISTRY_INTERNAL = {
   admin_users: {
     moduleKey: "admin_users",
     label: "Administracion de usuarios",
-    route: "/administracion/usuarios",
+    route: "/configuraciones/usuarios",
     apiBase: "/api/tenant/users",
     collectionKeys: [],
     enabled: true,
@@ -325,50 +325,29 @@ const MODULE_REGISTRY_INTERNAL = {
       ["platform_admin", "tenant_admin", "tenant_manager"]
     ),
     navigation: {
-      label: "Usuarios y roles",
-      href: "/administracion/usuarios",
+      label: "Configuraciones",
+      href: "/configuraciones",
       order: 100,
-      groupLabel: "Administracion",
-      groupHref: "/administracion",
-      groupOrder: 90,
       visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager"]
     }
   },
   audit: {
     moduleKey: "audit",
     label: "Auditoria",
-    route: "/auditoria",
+    route: "/configuraciones/auditoria",
     apiBase: "/api/audit",
     collectionKeys: [],
     enabled: true,
-    accessPolicy: buildAccessPolicy(["platform_admin", "tenant_admin"], ["platform_admin", "tenant_admin"]),
-    navigation: {
-      label: "Auditoria",
-      href: "/auditoria",
-      order: 110,
-      groupLabel: "Administracion",
-      groupHref: "/administracion",
-      groupOrder: 90,
-      visibleForRoles: ["platform_admin", "tenant_admin"]
-    }
+    accessPolicy: buildAccessPolicy(["platform_admin", "tenant_admin"], ["platform_admin", "tenant_admin"])
   },
   platform: {
     moduleKey: "platform",
     label: "Plataforma SaaS",
-    route: "/platform",
+    route: "/configuraciones/plataforma",
     apiBase: "/api/platform/tenants",
     collectionKeys: [],
     enabled: true,
-    accessPolicy: buildAccessPolicy(["platform_admin"], ["platform_admin"]),
-    navigation: {
-      label: "Plataforma",
-      href: "/platform",
-      order: 120,
-      groupLabel: "Administracion",
-      groupHref: "/administracion",
-      groupOrder: 90,
-      visibleForRoles: ["platform_admin"]
-    }
+    accessPolicy: buildAccessPolicy(["platform_admin"], ["platform_admin"])
   }
 } satisfies Record<string, ModuleDefinition>;
 
@@ -392,6 +371,13 @@ export function getModuleRelationSet(moduleKey: ModuleKey, relationSet = "defaul
 }
 
 export function resolveModuleKeyFromPath(pathname: string): ModuleKey | null {
+  if (pathname === "/configuraciones/roles" || pathname.startsWith("/configuraciones/roles/")) {
+    return "platform";
+  }
+  if (pathname === "/configuraciones/empresa" || pathname.startsWith("/configuraciones/empresa/")) {
+    return "admin_users";
+  }
+
   const candidates = getEnabledModules()
     .map((moduleDefinition) => ({ moduleKey: moduleDefinition.moduleKey as ModuleKey, route: moduleDefinition.route }))
     .sort((left, right) => right.route.length - left.route.length);

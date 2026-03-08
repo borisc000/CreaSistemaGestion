@@ -1,5 +1,5 @@
-import { PlatformConsolePage } from "@/features/platform/platform-console-page";
+import { redirect } from "next/navigation";
 
 export default function PlatformRoute() {
-  return <PlatformConsolePage />;
+  redirect("/configuraciones/plataforma");
 }

@@ -19,8 +19,18 @@ import {
   type PropsWithChildren
 } from "react";
 import { parsePlatformRole, parseTenantRole, resolveEffectiveRole } from "@/lib/auth/roles";
+import { setCurrencyFormatContext } from "@/lib/format";
 import { firebaseAuth } from "@/lib/firebase/client";
-import type { TenantRecord, TenantScopedRole, UserRole, UserTenantMembershipView } from "@/types/domain";
+import type {
+  ModuleAccessSnapshot,
+  ModuleKey,
+  TenantCurrency,
+  TenantRecord,
+  TenantScopedRole,
+  TenantSettings,
+  UserRole,
+  UserTenantMembershipView
+} from "@/types/domain";
 
 type AuthContextPayload = {
   data: {
@@ -30,6 +40,8 @@ type AuthContextPayload = {
       tenantRole: TenantScopedRole | null;
       platformRole: "platform_admin" | null;
     };
+    moduleAccess: Partial<Record<ModuleKey, ModuleAccessSnapshot>>;
+    tenantSettings: TenantSettings;
     tenant: TenantRecord | null;
     memberships: UserTenantMembershipView[];
   };
@@ -49,6 +61,8 @@ type AuthState = {
   tenantRole: TenantScopedRole | null;
   platformRole: "platform_admin" | null;
   tenantId: string | null;
+  moduleAccess: Partial<Record<ModuleKey, ModuleAccessSnapshot>>;
+  tenantCurrency: TenantCurrency;
   memberships: UserTenantMembershipView[];
   needsOnboarding: boolean;
   switchingTenant: boolean;
@@ -86,10 +100,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [tenantRole, setTenantRole] = useState<TenantScopedRole | null>("viewer");
   const [platformRole, setPlatformRole] = useState<"platform_admin" | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [moduleAccess, setModuleAccess] = useState<Partial<Record<ModuleKey, ModuleAccessSnapshot>>>({});
+  const [tenantCurrency, setTenantCurrency] = useState<TenantCurrency>("CLP");
   const [memberships, setMemberships] = useState<UserTenantMembershipView[]>([]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [loading, setLoading] = useState(true);
   const [switchingTenant, setSwitchingTenant] = useState(false);
+
+  const applyTenantCurrency = useCallback((nextCurrency: TenantCurrency) => {
+    setCurrencyFormatContext({ currency: nextCurrency, locale: "es-CL" });
+    setTenantCurrency(nextCurrency);
+  }, []);
 
   const loadAuthContext = useCallback(async (token: string) => {
     const response = await fetch("/api/auth/context", {
@@ -107,9 +128,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setTenantRole(context.roles.tenantRole);
     setPlatformRole(context.roles.platformRole);
     setTenantId(context.tenant?.id || context.memberships[0]?.tenantId || null);
+    setModuleAccess(context.moduleAccess || {});
+    applyTenantCurrency(context.tenantSettings?.company?.currency === "USD" ? "USD" : "CLP");
     setMemberships(context.memberships || []);
     setNeedsOnboarding(context.onboardingRequired);
-  }, []);
+  }, [applyTenantCurrency]);
 
   const refreshClaims = useCallback(async () => {
     if (!user) return;
@@ -124,10 +147,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try {
       await loadAuthContext(token);
     } catch {
+      setModuleAccess({});
+      applyTenantCurrency("CLP");
       setNeedsOnboarding(false);
       setMemberships([]);
     }
-  }, [loadAuthContext, user]);
+  }, [applyTenantCurrency, loadAuthContext, user]);
 
   useEffect(() => {
     if (!firebaseAuth) {
@@ -143,6 +168,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setTenantRole("viewer");
         setPlatformRole(null);
         setTenantId(null);
+        setModuleAccess({});
+        applyTenantCurrency("CLP");
         setMemberships([]);
         setNeedsOnboarding(false);
         setLoading(false);
@@ -160,6 +187,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         await loadAuthContext(token);
       } catch {
+        setModuleAccess({});
+        applyTenantCurrency("CLP");
         setMemberships([]);
       } finally {
         setLoading(false);
@@ -167,7 +196,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     });
 
     return () => unsub();
-  }, [loadAuthContext]);
+  }, [applyTenantCurrency, loadAuthContext]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!firebaseAuth) {
@@ -240,6 +269,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       tenantRole,
       platformRole,
       tenantId,
+      moduleAccess,
+      tenantCurrency,
       memberships,
       needsOnboarding,
       switchingTenant,
@@ -258,6 +289,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       tenantRole,
       platformRole,
       tenantId,
+      moduleAccess,
+      tenantCurrency,
       memberships,
       needsOnboarding,
       switchingTenant,

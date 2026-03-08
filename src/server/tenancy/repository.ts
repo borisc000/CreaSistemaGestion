@@ -249,7 +249,7 @@ export async function listTenants(options?: { status?: TenantStatus; q?: string 
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-type TenantPatch = Partial<Pick<TenantRecord, "name" | "slug" | "status" | "plan" | "ownerUserId">>;
+type TenantPatch = Partial<Pick<TenantRecord, "name" | "slug" | "status" | "plan" | "ownerUserId" | "settings">>;
 
 export async function patchTenant(tenantId: string, patch: TenantPatch): Promise<void> {
   await adminDb.collection(TENANTS_COLLECTION).doc(tenantId).set(

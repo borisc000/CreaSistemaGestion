@@ -29,7 +29,7 @@ export function OnboardingTenantPage() {
         description="La creacion de empresas esta habilitada solo para platform admin."
       >
         <Panel title="Gestion de empresas">
-          <InlineError message="Solicita al platform admin que te asigne una empresa desde /platform." />
+          <InlineError message="Solicita al platform admin que te asigne una empresa desde /configuraciones/plataforma." />
         </Panel>
       </ModulePage>
     );

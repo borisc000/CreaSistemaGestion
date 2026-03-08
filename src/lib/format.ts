@@ -1,8 +1,25 @@
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("es-CL", {
+import type { TenantCurrency } from "@/types/domain";
+
+let runtimeCurrency: TenantCurrency = "CLP";
+let runtimeLocale = "es-CL";
+
+export function setCurrencyFormatContext(input: { currency?: TenantCurrency; locale?: string }) {
+  runtimeCurrency = input.currency === "USD" ? "USD" : "CLP";
+  if (typeof input.locale === "string" && input.locale.trim()) {
+    runtimeLocale = input.locale;
+  }
+}
+
+export function formatCurrency(value: number, options?: { currency?: TenantCurrency; locale?: string }): string {
+  const currency = options?.currency === "USD" ? "USD" : options?.currency === "CLP" ? "CLP" : runtimeCurrency;
+  const locale = options?.locale || runtimeLocale;
+  const maximumFractionDigits = currency === "USD" ? 2 : 0;
+  const minimumFractionDigits = currency === "USD" ? 2 : 0;
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0
+    currency,
+    minimumFractionDigits,
+    maximumFractionDigits
   }).format(value || 0);
 }
 

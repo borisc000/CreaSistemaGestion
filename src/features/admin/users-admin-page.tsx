@@ -53,7 +53,7 @@ function toQueryParams(params: Record<string, string | null | undefined>) {
   return search.toString();
 }
 
-export function UsersAdminPage() {
+export function UsersAdminPage({ hideModulePage = false }: { hideModulePage?: boolean } = {}) {
   const api = useApiClient();
   const { user: authUser, role: currentUserRole } = useAuth();
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
@@ -134,11 +134,8 @@ export function UsersAdminPage() {
     pendingChange && pendingChange.currentRole === "viewer" && pendingChange.role === "tenant_admin"
   );
 
-  return (
-    <ModulePage
-      title="Administracion de usuarios del ambiente"
-      description="Gestiona roles de tu empresa e invita nuevos usuarios al tenant."
-    >
+  const content = (
+    <>
       <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
 
       <ModuleActionBar>
@@ -494,6 +491,19 @@ export function UsersAdminPage() {
           </div>
         </form>
       </FormDrawer>
+    </>
+  );
+
+  if (hideModulePage) {
+    return content;
+  }
+
+  return (
+    <ModulePage
+      title="Administracion de usuarios del ambiente"
+      description="Gestiona roles de tu empresa e invita nuevos usuarios al tenant."
+    >
+      {content}
     </ModulePage>
   );
 }

@@ -15,7 +15,7 @@ export function LoginCard() {
   useEffect(() => {
     if (!loading && user) {
       if (role === "platform_admin") {
-        router.replace("/platform");
+        router.replace("/configuraciones/plataforma");
         return;
       }
       router.replace(needsOnboarding ? "/onboarding" : "/dashboard");

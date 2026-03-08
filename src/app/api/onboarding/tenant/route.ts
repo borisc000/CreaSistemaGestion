@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await getAuthContext(req);
     if (auth.role !== "platform_admin") {
-      throw new ApiError(403, "Solo platform_admin puede crear empresas. Usa consola /platform.");
+      throw new ApiError(403, "Solo platform_admin puede crear empresas. Usa consola /configuraciones/plataforma.");
     }
     if (!auth.email) {
       throw new ApiError(400, "La cuenta autenticada no tiene email.");

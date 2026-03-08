@@ -93,7 +93,7 @@ export function TendersPage() {
             <input value={form.client} onChange={(e) => setForm((v) => ({ ...v, client: e.target.value }))} required />
           </label>
           <label>
-            Monto USD
+            Monto
             <input
               type="number"
               min={0}

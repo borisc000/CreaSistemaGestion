@@ -3,10 +3,10 @@ import { normalizeLegacyRole, parsePlatformRole } from "@/lib/auth/roles";
 import { adminAuth } from "@/lib/firebase/admin";
 import { ALLOW_DEV_AUTH_BYPASS, DEFAULT_DEV_ROLE, DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { ApiError } from "@/server/api/response";
-import { hasModuleAccess, type ModuleAccessAction } from "@/server/auth/roles";
+import { getModulePolicySnapshot, resolveModuleActionAccess } from "@/server/auth/module-policy";
+import type { ModuleAccessAction } from "@/server/auth/roles";
 import { getRequestHost, resolveTenantIdForHost } from "@/server/tenancy/host-resolution";
 import { getTenantById, listMembershipsByUid } from "@/server/tenancy/repository";
-import { isModuleEnabledForPlan } from "@/server/tenancy/service";
 import type { ModuleKey, TenantContext, TenantUserMembership, UserRole } from "@/types/domain";
 
 function getBearerToken(req: NextRequest): string | null {
@@ -125,25 +125,31 @@ export async function getTenantContext(
 ): Promise<TenantContext> {
   const context = await getAuthContext(req);
 
-  if (!hasModuleAccess(context.role, moduleKey, action)) {
-    throw new ApiError(403, `Role has no ${action} permission for this module.`);
-  }
-
   if (moduleKey !== "platform" && !context.tenantId) {
     throw new ApiError(403, "No tenant context resolved for this request.");
   }
 
+  const tenant = context.tenantId ? await getTenantById(context.tenantId) : null;
   if (moduleKey !== "platform" && context.tenantId) {
-    const tenant = await getTenantById(context.tenantId);
     if (!tenant) {
       throw new ApiError(403, "Tenant no encontrado.");
     }
     if (tenant.status !== "active") {
       throw new ApiError(403, "El tenant esta suspendido.");
     }
-    if (moduleKey !== "dashboard" && !isModuleEnabledForPlan(moduleKey, tenant)) {
-      throw new ApiError(403, "Tu plan actual no habilita este modulo.");
-    }
+  }
+
+  const policy = await getModulePolicySnapshot();
+  const allowed = resolveModuleActionAccess({
+    moduleKey,
+    role: context.role,
+    action,
+    tenant,
+    policy
+  });
+
+  if (!allowed) {
+    throw new ApiError(403, `Role has no ${action} permission for this module.`);
   }
 
   return {

@@ -18,7 +18,7 @@ const MODULE_OPTIONS = MANAGED_TENANT_MODULES.map((moduleKey) => ({
   label: getModuleDefinition(moduleKey).label
 }));
 
-export function PlatformConsolePage() {
+export function PlatformConsolePage({ hideModulePage = false }: { hideModulePage?: boolean } = {}) {
   const api = useApiClient();
   const [tenants, setTenants] = useState<TenantRecord[]>([]);
   const [domains, setDomains] = useState<TenantDomain[]>([]);
@@ -106,11 +106,8 @@ export function PlatformConsolePage() {
 
   const enabledModuleSet = useMemo(() => new Set(enabledModulesDraft), [enabledModulesDraft]);
 
-  return (
-    <ModulePage
-      title="Consola de plataforma"
-      description="Operacion global SaaS: tenants, dominios y configuracion de plan."
-    >
+  const content = (
+    <>
       <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <InlineError message={error} />
 
@@ -503,6 +500,19 @@ export function PlatformConsolePage() {
           </div>
         ) : null}
       </Panel>
+    </>
+  );
+
+  if (hideModulePage) {
+    return content;
+  }
+
+  return (
+    <ModulePage
+      title="Consola de plataforma"
+      description="Operacion global SaaS: tenants, dominios y configuracion de plan."
+    >
+      {content}
     </ModulePage>
   );
 }

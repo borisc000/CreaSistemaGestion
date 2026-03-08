@@ -64,7 +64,7 @@ function eventPillClass(eventType: AuditLogEntry["eventType"]) {
   return "pill pill-updated";
 }
 
-export function AuditPage() {
+export function AuditPage({ hideModulePage = false }: { hideModulePage?: boolean } = {}) {
   const api = useApiClient();
   const [items, setItems] = useState<AuditLogEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -128,11 +128,8 @@ export function AuditPage() {
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) || null, [items, selectedId]);
 
-  return (
-    <ModulePage
-      title="Auditoria central"
-      description="Trazabilidad de cambios por modulo, actor, evento y fecha con comparacion antes/despues."
-    >
+  const content = (
+    <>
       <Toast message={toast?.message || null} tone={toast?.tone || "info"} />
       <Panel title="Filtros">
         <div className="toolbar">
@@ -329,6 +326,19 @@ export function AuditPage() {
           </div>
         ) : null}
       </Panel>
+    </>
+  );
+
+  if (hideModulePage) {
+    return content;
+  }
+
+  return (
+    <ModulePage
+      title="Auditoria central"
+      description="Trazabilidad de cambios por modulo, actor, evento y fecha con comparacion antes/despues."
+    >
+      {content}
     </ModulePage>
   );
 }

@@ -1,5 +1,5 @@
-import { AuditPage } from "@/features/audit/audit-page";
+import { redirect } from "next/navigation";
 
 export default function AuditRoute() {
-  return <AuditPage />;
+  redirect("/configuraciones/auditoria");
 }
