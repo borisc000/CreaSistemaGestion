@@ -26,6 +26,10 @@ service firebase.storage {
           );
     }
 
+    function isPlatformAdmin() {
+      return platformRole() == "platform_admin";
+    }
+
     function hasRole(allowed) {
       return signedIn() && ((role() in allowed) || (platformRole() in allowed));
     }
@@ -34,16 +38,20 @@ service firebase.storage {
       return signedIn() && request.auth.token.tenantId is string ? request.auth.token.tenantId : null;
     }
 
+    function canAccessTenantPath(tenantId) {
+      return signedIn() && ((tenant() != null && tenantId == tenant()) || isPlatformAdmin());
+    }
+
     match /tenants/{tenantId}/people/{personId}/documents/{fileName} {
-      allow get: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "hr", "viewer", "platform_admin"]);
+      allow get: if canAccessTenantPath(tenantId) && hasRole(["tenant_admin", "hr", "viewer", "platform_admin"]);
       allow list: if false;
-      allow write: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "hr", "platform_admin"]);
+      allow write: if canAccessTenantPath(tenantId) && hasRole(["tenant_admin", "hr", "platform_admin"]);
     }
 
     match /tenants/{tenantId}/correspondence/{allPaths=**} {
-      allow get: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "platform_admin"]);
+      allow get: if canAccessTenantPath(tenantId) && hasRole(["tenant_admin", "platform_admin"]);
       allow list: if false;
-      allow write: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "platform_admin"]);
+      allow write: if canAccessTenantPath(tenantId) && hasRole(["tenant_admin", "platform_admin"]);
     }
   }
 }

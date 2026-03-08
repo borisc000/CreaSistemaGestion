@@ -12,6 +12,6 @@ export const CORRESPONDENCE_DATA_SOURCE_TYPES = ["csv", "xlsx", "json"] as const
 export const CORRESPONDENCE_DATA_SOURCE_STATUSES = ["active", "archived"] as const;
 export const CORRESPONDENCE_JOB_STATUSES = ["queued", "processing", "completed", "failed"] as const;
 export const CORRESPONDENCE_OUTPUT_FORMATS = ["docx", "pdf"] as const;
-export const CORRESPONDENCE_DELIMITERS = ["angle", "double_angle", "curly", "bracket"] as const;
+export const CORRESPONDENCE_DELIMITERS = ["angle", "double_angle", "curly", "bracket", "question"] as const;
 
 export const REQUIRED_PERSON_DOCUMENT_TYPES = ["Contrato", "Carnet"] as const;

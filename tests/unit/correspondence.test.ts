@@ -26,6 +26,14 @@ describe("correspondence domain", () => {
     expect(keys).toEqual(["nombre"]);
   });
 
+  it("detects keys using question delimiter", () => {
+    const template = buildDocxWithDocumentXml(
+      "<w:document><w:body><w:p>Hola ?nombre? desde ?empresa?.</w:p></w:body></w:document>"
+    );
+    const keys = detectTemplateKeysFromDocx(template, "question");
+    expect(keys).toEqual(["empresa", "nombre"]);
+  });
+
   it("parses csv data source with headers", () => {
     const rows = parseDataSourceBuffer(Buffer.from("nombre,cargo\nAna,PM\nLuis,QA\n", "utf8"), "csv");
     expect(rows).toHaveLength(2);

@@ -414,6 +414,7 @@ export function CorrespondencePage() {
               <option value="double_angle">double_angle (&lt;&lt;nombre&gt;&gt;)</option>
               <option value="curly">curly (&#123;&#123;nombre&#125;&#125;)</option>
               <option value="bracket">bracket ([nombre])</option>
+              <option value="question">question (?nombre?)</option>
             </select>
           </label>
           <label>
@@ -541,4 +542,3 @@ export function CorrespondencePage() {
     </ModulePage>
   );
 }
-

@@ -26,6 +26,7 @@ function resolveDelimiterPair(delimiter: CorrespondenceDelimiter): DelimiterPair
   if (delimiter === "double_angle") return { start: "<<", end: ">>" };
   if (delimiter === "curly") return { start: "{{", end: "}}" };
   if (delimiter === "bracket") return { start: "[", end: "]" };
+  if (delimiter === "question") return { start: "?", end: "?" };
   return { start: "\u00ab", end: "\u00bb" };
 }
 
