@@ -26,6 +26,9 @@ const TENANT_SCOPED_COLLECTIONS_TO_DELETE = [
   "personDocuments",
   "personContractAssignments",
   "accreditationTemplates",
+  "correspondenceTemplates",
+  "correspondenceDataSources",
+  "correspondenceJobs",
   "auditLogs",
   "alerts"
 ] as const;

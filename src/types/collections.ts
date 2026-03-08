@@ -8,7 +8,10 @@ export const ENTITY_COLLECTION_KEYS = [
   "peopleRecords",
   "personDocuments",
   "personContractAssignments",
-  "accreditationTemplates"
+  "accreditationTemplates",
+  "correspondenceTemplates",
+  "correspondenceDataSources",
+  "correspondenceJobs"
 ] as const;
 
 export type CollectionKey = (typeof ENTITY_COLLECTION_KEYS)[number];

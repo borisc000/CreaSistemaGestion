@@ -39,5 +39,11 @@ service firebase.storage {
       allow list: if false;
       allow write: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "hr", "platform_admin"]);
     }
+
+    match /tenants/{tenantId}/correspondence/{allPaths=**} {
+      allow get: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "platform_admin"]);
+      allow list: if false;
+      allow write: if signedIn() && tenant() != null && tenantId == tenant() && hasRole(["tenant_admin", "platform_admin"]);
+    }
   }
 }

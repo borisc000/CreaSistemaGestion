@@ -28,6 +28,12 @@ describe("module registry", () => {
     expect(canViewModule("finance", "contracts")).toBe(false);
   });
 
+  it("keeps correspondencia_cruzada restricted to admins", () => {
+    expect(hasModuleAccess("tenant_admin", "correspondencia_cruzada", "read")).toBe(true);
+    expect(hasModuleAccess("hr", "correspondencia_cruzada", "read")).toBe(false);
+    expect(canViewModule("tenant_admin", "correspondencia_cruzada")).toBe(true);
+  });
+
   it("omits disabled modules from navigation generation", () => {
     const enabledModules = getEnabledModules();
     const shadowModule = {

@@ -313,6 +313,25 @@ const MODULE_REGISTRY_INTERNAL = {
       visibleForRoles: ["platform_admin", "tenant_admin", "tenant_manager", "hr"]
     }
   },
+  correspondencia_cruzada: {
+    moduleKey: "correspondencia_cruzada",
+    label: "Correspondencia Cruzada",
+    route: "/correspondencia-cruzada",
+    apiBase: "/api/correspondence",
+    collectionKeys: ["correspondenceTemplates", "correspondenceDataSources", "correspondenceJobs"],
+    primaryCollection: "correspondenceTemplates",
+    enabled: true,
+    accessPolicy: buildAccessPolicy(["platform_admin", "tenant_admin"], ["platform_admin", "tenant_admin"]),
+    relations: {
+      default: []
+    },
+    navigation: {
+      label: "Correspondencia cruzada",
+      href: "/correspondencia-cruzada",
+      order: 90,
+      visibleForRoles: ["platform_admin", "tenant_admin"]
+    }
+  },
   admin_users: {
     moduleKey: "admin_users",
     label: "Administracion de usuarios",

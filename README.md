@@ -21,6 +21,7 @@ Modulos implementados:
 - Finanzas
 - RRHH / Reclutamiento y seleccion
 - RRHH / Gestion de personas y documentos
+- Correspondencia Cruzada
 
 Navegacion jerarquica con menu lateral y subpaginas RRHH.
 
@@ -47,6 +48,9 @@ Persistencia Firestore bajo esquema tenant-aware:
 - `tenants/{tenantId}/candidates`
 - `tenants/{tenantId}/peopleRecords`
 - `tenants/{tenantId}/personDocuments`
+- `tenants/{tenantId}/correspondenceTemplates`
+- `tenants/{tenantId}/correspondenceDataSources`
+- `tenants/{tenantId}/correspondenceJobs`
 
 Storage documental RRHH:
 
@@ -64,6 +68,12 @@ Route Handlers:
 - `/api/hr/people`
 - `/api/hr/documents`
 - `/api/dashboard`
+- `/api/correspondence/templates`
+- `/api/correspondence/templates/upload-intent`
+- `/api/correspondence/data-sources`
+- `/api/correspondence/data-sources/upload-intent`
+- `/api/correspondence/jobs`
+- `/api/correspondence/jobs/run`
 - `/api/modules` (metadata de modulos habilitados)
 - `/api/onboarding/tenant` (legacy, solo platform_admin)
 - `/api/tenant/users` (usuarios por tenant)

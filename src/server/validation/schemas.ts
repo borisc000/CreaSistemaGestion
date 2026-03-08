@@ -2,6 +2,12 @@ import { z } from "zod";
 import {
   ACCREDITATION_SCOPES,
   CANDIDATE_STAGES,
+  CORRESPONDENCE_DATA_SOURCE_STATUSES,
+  CORRESPONDENCE_DATA_SOURCE_TYPES,
+  CORRESPONDENCE_DELIMITERS,
+  CORRESPONDENCE_JOB_STATUSES,
+  CORRESPONDENCE_OUTPUT_FORMATS,
+  CORRESPONDENCE_TEMPLATE_STATUSES,
   CONTRACT_STATUSES,
   EMPLOYMENT_STATUSES,
   OPERATION_TASK_STATUSES,
@@ -172,3 +178,40 @@ export const accreditationTemplateCreateSchema = z.object({
 });
 
 export const accreditationTemplatePatchSchema = accreditationTemplateCreateSchema.partial().extend({ id: idSchema });
+
+export const correspondenceTemplateCreateSchema = z.object({
+  name: z.string().min(2),
+  uploadIntentId: z.string().min(3),
+  fileName: z.string().min(3),
+  delimiter: z.enum(CORRESPONDENCE_DELIMITERS).default("angle"),
+  status: z.enum(CORRESPONDENCE_TEMPLATE_STATUSES).default("active")
+});
+
+export const correspondenceTemplatePatchSchema = z.object({
+  id: idSchema,
+  name: z.string().min(2).optional(),
+  delimiter: z.enum(CORRESPONDENCE_DELIMITERS).optional(),
+  status: z.enum(CORRESPONDENCE_TEMPLATE_STATUSES).optional()
+});
+
+export const correspondenceDataSourceCreateSchema = z.object({
+  name: z.string().min(2),
+  sourceType: z.enum(CORRESPONDENCE_DATA_SOURCE_TYPES),
+  uploadIntentId: z.string().min(3),
+  fileName: z.string().min(3),
+  status: z.enum(CORRESPONDENCE_DATA_SOURCE_STATUSES).default("active")
+});
+
+export const correspondenceDataSourcePatchSchema = z.object({
+  id: idSchema,
+  name: z.string().min(2).optional(),
+  status: z.enum(CORRESPONDENCE_DATA_SOURCE_STATUSES).optional()
+});
+
+export const correspondenceJobRunSchema = z.object({
+  name: z.string().min(2),
+  templateId: z.string().min(3),
+  dataSourceId: z.string().min(3),
+  outputFormats: z.array(z.enum(CORRESPONDENCE_OUTPUT_FORMATS)).min(1).default(["docx"]),
+  status: z.enum(CORRESPONDENCE_JOB_STATUSES).optional()
+});

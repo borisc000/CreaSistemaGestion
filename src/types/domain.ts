@@ -1,5 +1,11 @@
 import type {
   CANDIDATE_STAGES,
+  CORRESPONDENCE_DATA_SOURCE_STATUSES,
+  CORRESPONDENCE_DATA_SOURCE_TYPES,
+  CORRESPONDENCE_DELIMITERS,
+  CORRESPONDENCE_JOB_STATUSES,
+  CORRESPONDENCE_OUTPUT_FORMATS,
+  CORRESPONDENCE_TEMPLATE_STATUSES,
   CONTRACT_STATUSES,
   ACCREDITATION_SCOPES,
   EMPLOYMENT_STATUSES,
@@ -25,6 +31,12 @@ export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
 export type PersonDocumentStatus = (typeof PERSON_DOCUMENT_STATUSES)[number];
 export type PersonContractAssignmentStatus = (typeof PERSON_CONTRACT_ASSIGNMENT_STATUSES)[number];
 export type AccreditationScope = (typeof ACCREDITATION_SCOPES)[number];
+export type CorrespondenceTemplateStatus = (typeof CORRESPONDENCE_TEMPLATE_STATUSES)[number];
+export type CorrespondenceSourceType = (typeof CORRESPONDENCE_DATA_SOURCE_TYPES)[number];
+export type CorrespondenceDataSourceStatus = (typeof CORRESPONDENCE_DATA_SOURCE_STATUSES)[number];
+export type CorrespondenceJobStatus = (typeof CORRESPONDENCE_JOB_STATUSES)[number];
+export type CorrespondenceOutputFormat = (typeof CORRESPONDENCE_OUTPUT_FORMATS)[number];
+export type CorrespondenceDelimiter = (typeof CORRESPONDENCE_DELIMITERS)[number];
 
 export interface TenantContext {
   tenantId: string;
@@ -197,6 +209,39 @@ export interface PersonPayrollRecord extends BaseEntity {
   currency: string;
   source: string;
   items: PersonPayrollLineItem[];
+}
+
+export interface CorrespondenceTemplate extends BaseEntity {
+  name: string;
+  fileName: string;
+  filePath: string;
+  delimiter: CorrespondenceDelimiter;
+  keys: string[];
+  status: CorrespondenceTemplateStatus;
+}
+
+export interface CorrespondenceDataSource extends BaseEntity {
+  name: string;
+  sourceType: CorrespondenceSourceType;
+  fileName: string;
+  filePath: string | null;
+  rowsCount: number;
+  columns: string[];
+  status: CorrespondenceDataSourceStatus;
+}
+
+export interface CorrespondenceJob extends BaseEntity {
+  name: string;
+  templateId: string;
+  dataSourceId: string;
+  status: CorrespondenceJobStatus;
+  outputFormats: CorrespondenceOutputFormat[];
+  resultZipPath: string | null;
+  processedRows: number;
+  failedRows: number;
+  errorMessage: string | null;
+  startedAt: string;
+  finishedAt: string | null;
 }
 
 export interface DashboardKpis {

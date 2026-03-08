@@ -57,6 +57,18 @@ const EXTRA_COLLECTION_POLICIES: Record<TenantCollectionKey, { read: UserRole[];
   accreditationTemplates: {
     read: [],
     write: []
+  },
+  correspondenceTemplates: {
+    read: [],
+    write: []
+  },
+  correspondenceDataSources: {
+    read: [],
+    write: []
+  },
+  correspondenceJobs: {
+    read: [],
+    write: []
   }
 };
 

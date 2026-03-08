@@ -1,7 +1,9 @@
 import { MODULE_KEYS, type ModuleKey } from "@/modules/registry";
 import type { BillingPlanCode, TenantPlan } from "@/types/domain";
 
-const TENANT_ENABLED_MODULES = MODULE_KEYS.filter((moduleKey) => moduleKey !== "platform");
+const TENANT_ENABLED_MODULES = MODULE_KEYS.filter(
+  (moduleKey) => moduleKey !== "platform" && moduleKey !== "correspondencia_cruzada"
+);
 
 const PLAN_LIMITS: Record<BillingPlanCode, { maxUsers: number; enabledModules: ModuleKey[] }> = {
   starter: {

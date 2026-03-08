@@ -5,6 +5,9 @@ import type { CollectionKey } from "@/types/collections";
 import type {
   AccreditationTemplate,
   Candidate,
+  CorrespondenceDataSource,
+  CorrespondenceJob,
+  CorrespondenceTemplate,
   Contract,
   FinanceEntry,
   OperationTask,
@@ -27,6 +30,9 @@ type EntityMap = {
   personDocuments: PersonDocument;
   personContractAssignments: PersonContractAssignment;
   accreditationTemplates: AccreditationTemplate;
+  correspondenceTemplates: CorrespondenceTemplate;
+  correspondenceDataSources: CorrespondenceDataSource;
+  correspondenceJobs: CorrespondenceJob;
 };
 
 export type WriteActor = {

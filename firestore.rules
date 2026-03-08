@@ -49,6 +49,9 @@ service cloud.firestore {
         (collection == "auditLogs" && hasRole(["platform_admin", "tenant_admin"])) ||
         (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "contracts" && hasRole(["contract_manager", "finance", "hr", "platform_admin", "tenant_admin", "tenant_manager", "tender_lead"])) ||
+        (collection == "correspondenceDataSources" && hasRole(["platform_admin", "tenant_admin"])) ||
+        (collection == "correspondenceJobs" && hasRole(["platform_admin", "tenant_admin"])) ||
+        (collection == "correspondenceTemplates" && hasRole(["platform_admin", "tenant_admin"])) ||
         (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
@@ -66,6 +69,9 @@ service cloud.firestore {
         (collection == "auditLogs" && hasRole([])) ||
         (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "contracts" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager", "tender_lead"])) ||
+        (collection == "correspondenceDataSources" && hasRole(["platform_admin", "tenant_admin"])) ||
+        (collection == "correspondenceJobs" && hasRole(["platform_admin", "tenant_admin"])) ||
+        (collection == "correspondenceTemplates" && hasRole(["platform_admin", "tenant_admin"])) ||
         (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
