@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { ApiError } from "@/server/api/response";
 import type {
   TenantDomain,
   TenantInvitation,
@@ -81,6 +82,30 @@ type CreateTenantInput = {
   ownerUserId: string | null;
 };
 
+type CreateTenantWithOwnerInput = {
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    status: TenantStatus;
+    plan: TenantRecord["plan"];
+    ownerUserId: string;
+  };
+  membership: {
+    uid: string;
+    email: string;
+    role: TenantUserMembership["role"];
+    invitedByUid: string | null;
+    acceptedAt: string;
+  };
+  domain?: {
+    host: string;
+    type: TenantDomain["type"];
+    verified: boolean;
+    status: TenantDomain["status"];
+  } | null;
+};
+
 export async function createTenant(input: CreateTenantInput): Promise<TenantRecord> {
   const id = input.id || randomUUID();
   const now = nowIso();
@@ -103,6 +128,77 @@ export async function createTenant(input: CreateTenantInput): Promise<TenantReco
     ownerUserId: input.ownerUserId,
     createdAt: now,
     updatedAt: now
+  };
+}
+
+export async function createTenantWithOwnerMembership(
+  input: CreateTenantWithOwnerInput
+): Promise<{ tenant: TenantRecord; membership: TenantUserMembership; domain: TenantDomain | null }> {
+  const tenantId = input.tenant.id;
+  const now = nowIso();
+  const tenantPayload = {
+    name: input.tenant.name,
+    slug: input.tenant.slug,
+    status: input.tenant.status,
+    plan: input.tenant.plan,
+    ownerUserId: input.tenant.ownerUserId,
+    createdAt: now,
+    updatedAt: now
+  } satisfies Omit<TenantRecord, "id">;
+
+  const membershipId = tenantUserDocId(tenantId, input.membership.uid);
+  const membershipPayload = {
+    tenantId,
+    uid: input.membership.uid,
+    email: input.membership.email.toLowerCase(),
+    role: input.membership.role,
+    status: "active",
+    invitedByUid: input.membership.invitedByUid,
+    acceptedAt: input.membership.acceptedAt,
+    createdAt: now,
+    updatedAt: now
+  } satisfies Omit<TenantUserMembership, "id">;
+
+  const normalizedHost = input.domain ? normalizeHost(input.domain.host) : null;
+  const domainPayload = input.domain && normalizedHost
+    ? ({
+        tenantId,
+        host: normalizedHost,
+        type: input.domain.type,
+        verified: input.domain.verified,
+        status: input.domain.status,
+        createdAt: now,
+        updatedAt: now
+      } satisfies Omit<TenantDomain, "id">)
+    : null;
+
+  await adminDb.runTransaction(async (transaction) => {
+    const tenantRef = adminDb.collection(TENANTS_COLLECTION).doc(tenantId);
+    const tenantSnapshot = await transaction.get(tenantRef);
+    if (tenantSnapshot.exists) {
+      throw new ApiError(409, "Ya existe un tenant con ese slug.");
+    }
+
+    transaction.set(tenantRef, tenantPayload);
+    transaction.set(adminDb.collection(TENANT_USERS_COLLECTION).doc(membershipId), membershipPayload);
+
+    if (domainPayload && normalizedHost) {
+      const domainRef = adminDb.collection(TENANT_DOMAINS_COLLECTION).doc(normalizedHost);
+      const domainSnapshot = await transaction.get(domainRef);
+      if (domainSnapshot.exists) {
+        const existingTenantId = domainSnapshot.data()?.tenantId;
+        if (existingTenantId && existingTenantId !== tenantId) {
+          throw new ApiError(409, "El dominio ya esta asignado a otro tenant.");
+        }
+      }
+      transaction.set(domainRef, domainPayload, { merge: true });
+    }
+  });
+
+  return {
+    tenant: normalizeDoc<TenantRecord>(tenantId, tenantPayload as Record<string, unknown>),
+    membership: normalizeDoc<TenantUserMembership>(membershipId, membershipPayload as Record<string, unknown>),
+    domain: domainPayload && normalizedHost ? normalizeDoc<TenantDomain>(normalizedHost, domainPayload as Record<string, unknown>) : null
   };
 }
 

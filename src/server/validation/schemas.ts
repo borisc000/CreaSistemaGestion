@@ -125,11 +125,18 @@ export const personRecordCreateSchema = z.object({
 
 export const personRecordPatchSchema = personRecordCreateSchema.partial().extend({ id: idSchema });
 
+export const documentUploadIntentCreateSchema = z.object({
+  personId: z.string().min(3),
+  fileName: z.string().min(2),
+  mimeType: z.string().min(3),
+  sizeBytes: z.number().int().positive()
+});
+
 export const personDocumentCreateSchema = z.object({
   personId: z.string().min(3),
+  uploadIntentId: z.string().min(3),
   docType: z.string().min(2),
   fileName: z.string().min(2),
-  filePath: z.string().min(2).optional(),
   templateCode: z.string().min(2).nullable().optional(),
   scope: z.enum(ACCREDITATION_SCOPES).optional(),
   clientName: z.string().min(2).nullable().optional(),

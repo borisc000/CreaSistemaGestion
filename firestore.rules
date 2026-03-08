@@ -27,11 +27,11 @@ service cloud.firestore {
     }
 
     function tenant() {
-      return signedIn() && request.auth.token.tenantId is string ? request.auth.token.tenantId : "crea-default";
+      return signedIn() && request.auth.token.tenantId is string ? request.auth.token.tenantId : null;
     }
 
     function sameTenant(tenantId) {
-      return signedIn() && tenantId == tenant();
+      return signedIn() && tenant() != null && tenantId == tenant();
     }
 
     function isPlatformAdmin() {
@@ -44,35 +44,35 @@ service cloud.firestore {
 
     function canReadCollection(collection) {
       return (
-        (collection == "accreditationTemplates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "accreditationTemplates" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "alerts" && hasRole(["contract_manager", "finance", "hr", "platform_admin", "tenant_admin"])) ||
         (collection == "auditLogs" && hasRole(["platform_admin", "tenant_admin"])) ||
-        (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "contracts" && hasRole(["contract_manager", "finance", "hr", "platform_admin", "tenant_admin", "tender_lead"])) ||
-        (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin"])) ||
-        (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin"])) ||
-        (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "personContractAssignments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "personDocuments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "tenders" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tender_lead"])) ||
-        (collection == "vacancies" && hasRole(["hr", "platform_admin", "tenant_admin"]))
+        (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "contracts" && hasRole(["contract_manager", "finance", "hr", "platform_admin", "tenant_admin", "tenant_manager", "tender_lead"])) ||
+        (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "personContractAssignments" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "personDocuments" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "tenders" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager", "tender_lead"])) ||
+        (collection == "vacancies" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"]))
       );
     }
 
     function canWriteCollection(collection) {
       return (
-        (collection == "accreditationTemplates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
+        (collection == "accreditationTemplates" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
         (collection == "alerts" && hasRole([])) ||
         (collection == "auditLogs" && hasRole([])) ||
-        (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "contracts" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tender_lead"])) ||
-        (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin"])) ||
-        (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin"])) ||
-        (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "personContractAssignments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "personDocuments" && hasRole(["hr", "platform_admin", "tenant_admin"])) ||
-        (collection == "tenders" && hasRole(["platform_admin", "tenant_admin", "tender_lead"])) ||
-        (collection == "vacancies" && hasRole(["hr", "platform_admin", "tenant_admin"]))
+        (collection == "candidates" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "contracts" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager", "tender_lead"])) ||
+        (collection == "financeEntries" && hasRole(["finance", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "operationTasks" && hasRole(["contract_manager", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "peopleRecords" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "personContractAssignments" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "personDocuments" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"])) ||
+        (collection == "tenders" && hasRole(["platform_admin", "tenant_admin", "tenant_manager", "tender_lead"])) ||
+        (collection == "vacancies" && hasRole(["hr", "platform_admin", "tenant_admin", "tenant_manager"]))
       );
     }
 

@@ -9,13 +9,9 @@ import {
   patchEntity
 } from "@/server/repositories/firestore-repository";
 import { deriveDocumentStatus } from "@/server/domain/document-status";
+import { consumeDocumentUploadIntent } from "@/server/domain/document-upload-intents";
 import { validateModuleRelations } from "@/server/validation/relations";
 import { personDocumentCreateSchema, personDocumentPatchSchema } from "@/server/validation/schemas";
-
-function buildStoragePath(tenantId: string, personId: string, fileName: string) {
-  const cleanName = fileName.replace(/\s+/g, "_");
-  return `tenants/${tenantId}/people/${personId}/documents/${Date.now()}-${cleanName}`;
-}
 
 function normalizeAccreditationMetadata(payload: {
   templateCode?: string | null;
@@ -64,12 +60,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const context = await getTenantContext(req, "hr_people", "write");
-    const body = await req.json();
-    const filePath = body.filePath || buildStoragePath(context.tenantId, body.personId, body.fileName);
-    const parsed = personDocumentCreateSchema.parse({
-      ...body,
-      filePath
-    });
+    const parsed = personDocumentCreateSchema.parse(await req.json());
     const accreditation = normalizeAccreditationMetadata(parsed);
 
     await validateModuleRelations({
@@ -83,13 +74,26 @@ export async function POST(req: NextRequest) {
       mode: "create"
     });
 
+    const { uploadIntentId, ...documentPayload } = parsed;
+    const { uploadPath } = await consumeDocumentUploadIntent({
+      tenantId: context.tenantId,
+      personId: parsed.personId,
+      uploadIntentId,
+      expectedFileName: parsed.fileName,
+      actor: {
+        uid: context.uid,
+        email: context.email,
+        role: context.role
+      }
+    });
+
     const created = await createEntity(
       context.tenantId,
       "personDocuments",
       {
-        ...parsed,
+        ...documentPayload,
         ...accreditation,
-        filePath,
+        filePath: uploadPath,
         expiryDate: parsed.expiryDate ?? null,
         status: deriveDocumentStatus(parsed.expiryDate ?? null)
       },

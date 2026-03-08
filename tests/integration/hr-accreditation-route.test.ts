@@ -17,6 +17,10 @@ vi.mock("@/server/validation/relations", () => ({
   validateModuleRelations: vi.fn()
 }));
 
+vi.mock("@/server/domain/document-upload-intents", () => ({
+  consumeDocumentUploadIntent: vi.fn()
+}));
+
 vi.mock("@/server/domain/accreditation", () => ({
   assertNoOverlappingActiveAssignments: vi.fn(),
   ensureDefaultAccreditationTemplates: vi.fn(),
@@ -38,6 +42,7 @@ import {
   getEntity,
   listEntities
 } from "@/server/repositories/firestore-repository";
+import { consumeDocumentUploadIntent } from "@/server/domain/document-upload-intents";
 import { validateModuleRelations } from "@/server/validation/relations";
 
 describe("hr accreditation APIs", () => {
@@ -253,6 +258,9 @@ describe("hr accreditation APIs", () => {
       email: "hr@acme.com"
     });
     vi.mocked(validateModuleRelations).mockResolvedValue(undefined);
+    vi.mocked(consumeDocumentUploadIntent).mockResolvedValue({
+      uploadPath: "tenants/tenant-a/people/person-1/documents/doc1.pdf"
+    });
     vi.mocked(createEntity).mockResolvedValue({
       id: "doc-1",
       personId: "person-1",
@@ -278,7 +286,7 @@ describe("hr accreditation APIs", () => {
         personId: "person-1",
         docType: "DOC 1",
         fileName: "doc1.pdf",
-        filePath: "tenants/tenant-a/people/person-1/documents/doc1.pdf",
+        uploadIntentId: "intent-1",
         templateCode: "DOC_1",
         scope: "contract",
         contractId: "contract-1",
@@ -293,13 +301,21 @@ describe("hr accreditation APIs", () => {
 
     expect(response.status).toBe(201);
     expect(body.data.templateCode).toBe("DOC_1");
+    expect(vi.mocked(consumeDocumentUploadIntent)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant-a",
+        personId: "person-1",
+        uploadIntentId: "intent-1"
+      })
+    );
     expect(vi.mocked(createEntity)).toHaveBeenCalledWith(
       "tenant-a",
       "personDocuments",
       expect.objectContaining({
         templateCode: "DOC_1",
         scope: "contract",
-        contractId: "contract-1"
+        contractId: "contract-1",
+        filePath: "tenants/tenant-a/people/person-1/documents/doc1.pdf"
       }),
       expect.any(Object)
     );

@@ -8,15 +8,15 @@ import { getTenantContext } from "@/server/auth/request-context";
 import { assertPlatformAdmin } from "@/server/tenancy/access";
 import { buildTenantPlan } from "@/server/tenancy/plans";
 import {
-  createTenant,
+  createTenantWithOwnerMembership,
   deleteTenantHard,
   getTenantById,
+  getTenantMembership,
   listTenants,
   patchTenant,
-  upsertTenantDomain,
   upsertTenantMembership
 } from "@/server/tenancy/repository";
-import { normalizeTenantSlug, syncCustomClaimsForMembership } from "@/server/tenancy/service";
+import { ensureTenantCapacity, normalizeTenantSlug, syncCustomClaimsForMembership } from "@/server/tenancy/service";
 import type { BillingPlanCode, ModuleKey, TenantStatus } from "@/types/domain";
 
 const createTenantSchema = z.object({
@@ -87,50 +87,43 @@ export async function POST(req: NextRequest) {
 
     const slug = normalizeTenantSlug(parsed.slug, parsed.name);
     const ownerRole = parseTenantRoleOrThrow(parsed.ownerRole || "tenant_admin");
-    const existing = await getTenantById(slug);
-    if (existing) {
-      throw new ApiError(409, "Ya existe un tenant con ese slug.");
-    }
-
-    const tenant = await createTenant({
-      id: slug,
-      name: parsed.name.trim(),
-      slug,
-      status: "active",
-      plan: buildTenantPlan(parsed.planCode || "starter"),
-      ownerUserId: null
-    });
-
-    if (TENANT_BASE_DOMAIN) {
-      await upsertTenantDomain({
-        host: `${tenant.slug}.${TENANT_BASE_DOMAIN}`,
-        tenantId: tenant.id,
-        type: "wildcard",
-        verified: true,
-        status: "active"
-      });
-    }
-
-    let ownerUid: string | null = null;
     const owner = await adminAuth.getUserByEmail(parsed.ownerEmail);
-    ownerUid = owner.uid;
-    const membership = await upsertTenantMembership({
-      tenantId: tenant.id,
-      uid: owner.uid,
-      email: parsed.ownerEmail,
-      role: ownerRole,
-      status: "active",
-      invitedByUid: context.uid,
-      acceptedAt: new Date().toISOString()
+    const acceptedAt = new Date().toISOString();
+    const created = await createTenantWithOwnerMembership({
+      tenant: {
+        id: slug,
+        name: parsed.name.trim(),
+        slug,
+        status: "active",
+        plan: buildTenantPlan(parsed.planCode || "starter"),
+        ownerUserId: owner.uid
+      },
+      membership: {
+        uid: owner.uid,
+        email: parsed.ownerEmail,
+        role: ownerRole,
+        invitedByUid: context.uid,
+        acceptedAt
+      },
+      domain: TENANT_BASE_DOMAIN
+        ? {
+            host: `${slug}.${TENANT_BASE_DOMAIN}`,
+            type: "wildcard",
+            verified: true,
+            status: "active"
+          }
+        : null
     });
+
+    const tenant = created.tenant;
+    const membership = created.membership;
     await syncCustomClaimsForMembership(owner.uid, membership, { preservePlatformRole: true });
-    await patchTenant(tenant.id, { ownerUserId: owner.uid });
 
     return jsonOk(
       {
         data: {
           ...tenant,
-          ownerUserId: ownerUid,
+          ownerUserId: owner.uid,
           ownerRole
         }
       },
@@ -168,6 +161,10 @@ export async function PATCH(req: NextRequest) {
         throw new ApiError(404, "El correo no existe en Auth. Debe iniciar sesion una vez primero.");
       }
 
+      const existingMembership = await getTenantMembership(tenant.id, targetUser.uid);
+      if (!existingMembership || (existingMembership.status !== "active" && existingMembership.status !== "invited")) {
+        await ensureTenantCapacity(tenant.id);
+      }
       const membership = await upsertTenantMembership({
         tenantId: tenant.id,
         uid: targetUser.uid,

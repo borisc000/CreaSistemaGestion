@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export class ApiError extends Error {
@@ -15,9 +16,15 @@ export function jsonOk<T>(data: T, status = 200) {
 
 export function jsonError(error: unknown) {
   if (error instanceof ApiError) {
+    if (error.status >= 500) {
+      const requestId = randomUUID();
+      console.error(`[request:${requestId}]`, error);
+      return NextResponse.json({ error: "Unexpected server error.", requestId }, { status: error.status });
+    }
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
 
-  const message = error instanceof Error ? error.message : "Unexpected server error.";
-  return NextResponse.json({ error: message }, { status: 500 });
+  const requestId = randomUUID();
+  console.error(`[request:${requestId}]`, error);
+  return NextResponse.json({ error: "Unexpected server error.", requestId }, { status: 500 });
 }

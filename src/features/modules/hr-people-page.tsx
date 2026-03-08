@@ -16,9 +16,9 @@ import {
 } from "@/features/modules/module-ui";
 import { HrAccreditationPanel } from "@/features/modules/hr-accreditation-panel";
 import { useCrudModule } from "@/features/modules/use-crud-module";
+import { useApiClient } from "@/lib/api/use-api-client";
 import { REQUIRED_PERSON_DOCUMENT_TYPES } from "@/types/catalogs";
 import { formatDate } from "@/lib/format";
-import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { firebaseStorage } from "@/lib/firebase/client";
 import type {
   Contract,
@@ -32,14 +32,18 @@ import type {
 const EMPLOYMENT_STATUSES: EmploymentStatus[] = ["active", "on_leave", "inactive"];
 type HrPeopleTab = "people" | "documents" | "accreditation";
 
+type UploadIntentResponse = {
+  data: {
+    uploadIntentId: string;
+    uploadPath: string;
+    expiresAt: string;
+  };
+};
+
 function toneFromDocumentStatus(status: PersonDocumentStatus): "good" | "warn" | "risk" {
   if (status === "expired") return "risk";
   if (status === "expiring" || status === "pending") return "warn";
   return "good";
-}
-
-function normalizeFileName(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
 function isDateRangeActive(startDate: string, endDate: string | null): boolean {
@@ -54,6 +58,7 @@ function isDateRangeActive(startDate: string, endDate: string | null): boolean {
 }
 
 export function HrPeoplePage() {
+  const api = useApiClient();
   const peopleApi = useCrudModule<PersonRecord>("/api/hr/people");
   const documentsApi = useCrudModule<PersonDocument>("/api/hr/documents");
   const contractsApi = useCrudModule<Contract>("/api/contracts");
@@ -128,15 +133,21 @@ export function HrPeoplePage() {
       }
 
       const fileName = file.name;
-      const filePath = `tenants/${DEFAULT_TENANT_ID}/people/${documentForm.personId}/documents/${Date.now()}-${normalizeFileName(fileName)}`;
-      const storageRef = ref(firebaseStorage, filePath);
+      const uploadIntent = await api.post<UploadIntentResponse>("/api/hr/documents/upload-intent", {
+        personId: documentForm.personId,
+        fileName,
+        mimeType: file.type,
+        sizeBytes: file.size
+      });
+
+      const storageRef = ref(firebaseStorage, uploadIntent.data.uploadPath);
       await uploadBytes(storageRef, file);
 
       await documentsApi.create({
         personId: documentForm.personId,
         docType: documentForm.docType,
         fileName,
-        filePath,
+        uploadIntentId: uploadIntent.data.uploadIntentId,
         expiryDate: documentForm.expiryDate || null
       });
 

@@ -166,11 +166,11 @@ service cloud.firestore {
     }
 
     function tenant() {
-      return signedIn() && request.auth.token.tenantId is string ? request.auth.token.tenantId : "crea-default";
+      return signedIn() && request.auth.token.tenantId is string ? request.auth.token.tenantId : null;
     }
 
     function sameTenant(tenantId) {
-      return signedIn() && tenantId == tenant();
+      return signedIn() && tenant() != null && tenantId == tenant();
     }
 
     function isPlatformAdmin() {

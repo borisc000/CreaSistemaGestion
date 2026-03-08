@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { useApiClient } from "@/lib/api/use-api-client";
 import { firebaseStorage } from "@/lib/firebase/client";
-import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import { formatDate } from "@/lib/format";
 import {
   EmptyState,
@@ -46,6 +45,13 @@ type MatrixResponse = {
 
 type AssignmentsResponse = { data: PersonContractAssignment[] };
 type TemplatesResponse = { data: AccreditationTemplate[] };
+type UploadIntentResponse = {
+  data: {
+    uploadIntentId: string;
+    uploadPath: string;
+    expiresAt: string;
+  };
+};
 
 type TemplateDraft = {
   name: string;
@@ -62,10 +68,6 @@ function toneFromRequirementStatus(status: AccreditationRequirementResult["statu
   if (status === "expired") return "risk";
   if (status === "pending") return "warn";
   return "good";
-}
-
-function normalizeFileName(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
 function todayIsoDate(): string {
@@ -509,15 +511,20 @@ export function HrAccreditationPanel({
       }
 
       const fileName = uploadFile.name;
-      const filePath = `tenants/${DEFAULT_TENANT_ID}/people/${selectedPersonId}/documents/${Date.now()}-${normalizeFileName(fileName)}`;
-      await uploadBytes(ref(firebaseStorage, filePath), uploadFile);
+      const uploadIntent = await api.post<UploadIntentResponse>("/api/hr/documents/upload-intent", {
+        personId: selectedPersonId,
+        fileName,
+        mimeType: uploadFile.type,
+        sizeBytes: uploadFile.size
+      });
+      await uploadBytes(ref(firebaseStorage, uploadIntent.data.uploadPath), uploadFile);
 
       const scope = uploadTarget.scope;
       const payload = {
         personId: selectedPersonId,
         docType: uploadTarget.name,
         fileName,
-        filePath,
+        uploadIntentId: uploadIntent.data.uploadIntentId,
         templateCode: uploadTarget.code,
         scope,
         clientName: scope === "client" ? uploadTarget.clientName : null,
